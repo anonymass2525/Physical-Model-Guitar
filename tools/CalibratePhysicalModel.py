@@ -56,6 +56,8 @@ def electric_rows(root):
         if row.get('source')!='ele' or int(row.get('fret',-1))!=0: continue
         key=(int(row.get('midi_number',-1)),int(row.get('string_number',-1)))
         aud=row.get('audio') or {}
+        # HF Dataset Viewer uses a list of audio assets per cell (not a dict).
+        if isinstance(aud,list): aud = next((v for v in aud if isinstance(v,dict) and v.get('src')), {})
         link=aud.get('src') if isinstance(aud,dict) else None
         if link: selected[key]=link
     out={}
