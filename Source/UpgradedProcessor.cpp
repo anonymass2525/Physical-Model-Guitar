@@ -156,7 +156,7 @@ juce::AudioProcessorEditor *PhysicalModelGuitarAudioProcessor::createEditor()
 void PhysicalModelGuitarAudioProcessor::getStateInformation(juce::MemoryBlock &data)
 {
     auto s = parameters.copyState();
-    s.setProperty("schema", 3, nullptr);
+    s.setProperty("schema", 4, nullptr);
     s.setProperty("editorWidth", editorWidth.load(), nullptr);
     s.setProperty("editorHeight", editorHeight.load(), nullptr);
     auto xml = s.createXml();

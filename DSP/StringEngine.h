@@ -69,6 +69,13 @@ private:
         float pickupPrevious = 0, rolloffState = 0;
         float bodyHighpass = 0;
         float dispersion = .5f, planeDetune = .0007f;
+        // Acoustic Realism II: passive polarization exchange, amplitude-dependent tension,
+        // and independent longitudinal/transverse losses. The coefficients are physical
+        // approximations and require validation against matched clean recordings.
+        float strainEnergy = 0.f, waveExchange = 0.f;
+        float pickStiffness = 1.f, strainSensitivity = 0.f;
+        float transverseLossRatio = 1.3f, polarizationExchange = .0002f;
+        float attackTimeScale = 1.f;
         void start(int n, int stringNo, int fretNo, float velocity,
                    float rate, Model m, const Controls& controls) noexcept;
         struct Output { float bridge = 0, electric = 0, direct = 0, fret = 0; };

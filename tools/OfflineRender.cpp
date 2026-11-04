@@ -23,8 +23,30 @@ void save(const std::string& path,const std::vector<float>& stereo,int sr)
 }
 int main(int argc,char**argv)
 {
-    const std::string base=argc>1?argv[1]:"PMG03";
     constexpr int sr=48000;
+    // Usage: PMGOfflineRender --single model[1..3] midi[40..88] velocity[0..1] output.wav
+    if(argc==6 && std::string(argv[1])=="--single")
+    {
+        const int model=std::stoi(argv[2]);
+        const int note=std::stoi(argv[3]);
+        const float vel=std::stof(argv[4]);
+        if(model<1||model>3||note<40||note>88||vel<=0||vel>1)return 2;
+        pmg::Controls c;
+        auto e=std::make_unique<pmg::ModelRack>();
+        e->prepare(sr,pmg::Model(model),c);
+        e->noteOn(note,vel);
+        std::vector<float> audio;
+        audio.reserve(size_t(sr*2*2));
+        for(int i=0;i<sr*2;++i)
+        {
+            const auto frame=e->nextFrame();
+            audio.push_back(frame.left);audio.push_back(frame.right);
+        }
+        save(argv[5],audio,sr);
+        std::cout<<"Single note "<<argv[5]<<"\n";
+        return 0;
+    }
+    const std::string base=argc>1?argv[1]:"PMG04";
     const int notes[]={52,55,59,64,57,52,50,55};
     for(int model=0;model<4;++model)
     {

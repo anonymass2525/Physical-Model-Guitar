@@ -1,0 +1,51 @@
+name: Physical Model Guitar 0.4 - Windows VST3 Installer
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["CMakeLists.txt", "DSP/**", "Source/**", "Tests/**", "tools/**", "Installer/**", ".github/workflows/windows-v04.yml"]
+  pull_request:
+    branches: [main]
+jobs:
+  windows-vst3:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure
+        shell: pwsh
+        run: cmake -S . -B build-win -A x64 -DPMG_BUILD_PLUGIN=ON -DBUILD_TESTING=ON
+      - name: Build Release
+        shell: pwsh
+        run: cmake --build build-win --config Release --parallel 2
+      - name: Native DSP tests
+        shell: pwsh
+        run: ctest --test-dir build-win -C Release --output-on-failure
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed" }
+          }
+          if (-not (Test-Path $iscc)) { throw "Inno Setup 6 ISCC.exe not available on runner" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & $iscc "/DRepoRoot=$((Get-Location).Path)" "/DBuildRoot=$((Get-Location).Path)\build-win" "/DOutputRoot=$((Get-Location).Path)\dist" "Installer\PMG04.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "dist\PhysicalModelGuitar-0.4-Windows-x64-Setup.exe")) { throw "Installer missing" }
+      - name: Upload EXE installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhysicalModelGuitar-0.4-Windows-x64-Setup
+          path: dist/PhysicalModelGuitar-0.4-Windows-x64-Setup.exe
+          retention-days: 90
+          if-no-files-found: error
+      - name: Upload VST3 (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhysicalModelGuitar-0.4-Windows-x64-VST3
+          path: build-win/PhysicalModelGuitar_artefacts/Release/VST3/
+          retention-days: 90
+          if-no-files-found: error
