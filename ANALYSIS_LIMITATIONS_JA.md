@@ -41,3 +41,15 @@ python tools/LargeCorpusCalibrator.py --render build/PMGOfflineRender --out expa
 参考:
 - https://github.com/facebookincubator/Meta-open-sound
 - https://huggingface.co/datasets/collegefishiesd/guitar-fretboard-notes
+
+## 機械共鳴の実測校正（追加）
+
+`tools/FitBridgeAdmittance.py` はギターのブリッジ加振点で測定した **2チャンネルの同期WAV**（左=加振力[N]、右=ブリッジ速度[m/s]）から機械的アドミタンスを推定し、10モードの周波数・Q・強度の**候補**を出力する。
+
+```bash
+python tools/FitBridgeAdmittance.py measured_force_velocity.wav --model steel --out candidate-body.json
+```
+
+測定には加振器またはインパクトハンマー、力センサー、速度センサー／加速度計（速度へ積分）、同一サンプルクロックの収録が必要。一般的なギター単音の録音だけからは、これらの物理モードを一意に測ることはできない。現在は振幅ピークと半値幅からの候補生成であり、位相と多方向のアドミタンス行列まで含めた厳密な同定ではない。
+
+参考：https://euphonics.org/wp-content/uploads/2022/03/Guitar_II.pdf

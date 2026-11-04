@@ -1,5 +1,6 @@
 #include "UpgradedProcessor.h"
 #include "UpgradedEditor.h"
+#include "../DSP/CalibrationProfiles.h"
 #include <cmath>
 PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
@@ -7,6 +8,7 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
 {
     for (size_t i = 0; i < ids.size(); ++i)
         raw[i] = parameters.getRawParameterValue(ids[i]);
+    rawRealCalibration = parameters.getRawParameterValue("realCalibration");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -50,6 +52,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
                               juce::NormalisableRange<float>(0.f, 1.f, .001f), .5f));
     l.add(std::make_unique<P>(juce::ParameterID{"bridgeMobility", 1}, "Bridge Mobility",
                               juce::NormalisableRange<float>(0.f, 1.f, .001f), .5f));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"realCalibration", 1},
+          "Real Recording Calibration (A/B Experimental)", false));
     return l;
 }
 void PhysicalModelGuitarAudioProcessor::loadComparisonPreset(int model)
@@ -67,6 +71,11 @@ void PhysicalModelGuitarAudioProcessor::loadComparisonPreset(int model)
         p->setValueNotifyingHost(v);
         p->endChangeGesture();
     }
+    if (auto* cal = parameters.getParameter("realCalibration")) {
+        cal->beginChangeGesture();
+        cal->setValueNotifyingHost(0.f);
+        cal->endChangeGesture();
+    }
 }
 pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
 {
@@ -81,6 +90,8 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
         if (std::isfinite(v))
             *dst[i] = v;
     }
+    if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
+        pmg::applyHeldoutCandidates(requestedModel(), c.calibration);
     return c;
 }
 pmg::Model PhysicalModelGuitarAudioProcessor::requestedModel() const noexcept
@@ -156,7 +167,7 @@ juce::AudioProcessorEditor *PhysicalModelGuitarAudioProcessor::createEditor()
 void PhysicalModelGuitarAudioProcessor::getStateInformation(juce::MemoryBlock &data)
 {
     auto s = parameters.copyState();
-    s.setProperty("schema", 4, nullptr);
+    s.setProperty("schema", 5, nullptr);
     s.setProperty("editorWidth", editorWidth.load(), nullptr);
     s.setProperty("editorHeight", editorHeight.load(), nullptr);
     auto xml = s.createXml();

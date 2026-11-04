@@ -19,3 +19,11 @@ GitHub Actionsの `Physical Model Guitar 0.4 - Windows VST3 Installer` を実行
 ## 検証状況
 Linux/g++によるDSP単体CTest5件合格。Windows用JUCE VST3とEXEはGitHub Actionsでの実ビルドと試験が必要。
 音色が実ギター録音とどれだけ一致するかは現時点で未検証。測定方法は `REAL_RECORDING_CALIBRATION_JA.md` を参照してください。
+
+## v0.5 experimental per-string calibration
+
+この研究ブランチではPhysicalCalibrationによって各弦の接触剛性・4帯域の減衰・ピックアップ位置、10個のボディ共鳴モードを調整できます。GUIからの編集や自動適用はまだ行いません。実録音での保留評価が済むまでは、0.4の音をそのまま使用してください。
+
+パラメーター校正ツール: `tools/LargeCorpusCalibrator.py`。ブリッジ加振・速度の同期録音を使うボディモードの校正候補ツール: `tools/FitBridgeAdmittance.py`。結果の制約は `ANALYSIS_LIMITATIONS_JA.md` を参照。
+
+Research 0.5は独立のVST3識別子を使用しており、0.4を上書きしません。Windowsの配布はEXEインストーラー形式のみとし、音質改善が検証された時点でパッケージします。
