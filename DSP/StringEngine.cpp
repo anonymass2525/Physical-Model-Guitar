@@ -63,11 +63,32 @@ void StringEngine::String::start(int n, int stringNo, int fretNo, float velocity
     dispersion = m==Model::nylon ? .78f : m==Model::steel ? .48f : .28f;
     dispersion -= .10f*(c.material-.5f);
     dispersion=limit(.1f,.89f,dispersion);
+    // Slightly different loss constants and detuning in the two physical planes
+    // cause beating and an uneven, but deterministic, long-term tail.
     planeDetune = .00035f + .0014f*c.material;
+    strainEnergy = 0.f;
+    waveExchange = 0.f;
+    if (m == Model::electric) {
+        pickStiffness = 1.18f; strainSensitivity = .0035f;
+        transverseLossRatio = 1.30f; polarizationExchange = .00016f;
+        attackTimeScale = .74f;
+    } else if (m == Model::steel) {
+        pickStiffness = 1.04f; strainSensitivity = .0052f;
+        transverseLossRatio = 1.39f; polarizationExchange = .00031f;
+        attackTimeScale = .88f;
+    } else if (m == Model::nylon) {
+        pickStiffness = .62f; strainSensitivity = .0022f;
+        transverseLossRatio = 1.52f; polarizationExchange = .00045f;
+        attackTimeScale = 1.43f;
+    } else {
+        pickStiffness = 1.f; strainSensitivity = .0028f;
+        transverseLossRatio = 1.28f; polarizationExchange = .00024f;
+        attackTimeScale = 1.f;
+    }
     // Pick deflection follows velocity nonlinearly; force is released by a slip event.
     pickDepth = (.035f + .13f*noteVelocity*noteVelocity)*(m==Model::nylon ? .74f:1.f);
     pickSlip = .52f + .36f*c.hardness;
-    contactLength = limit(12, int(sr*.005f), int(sr*(.00065f + .0028f*(1.f-c.hardness))));
+    contactLength = limit(12, int(sr*.005f), int(sr*(.00065f + .0028f*(1.f-c.hardness))*attackTimeScale));
     prevPickDisplacement=lastContact=fretDisplacement=previousBridge=0;
     lastMagnetic=pickupPrevious=circuitLo=circuitMid=rolloffState=0;
 }
@@ -96,7 +117,12 @@ StringEngine::String::Output StringEngine::String::tick(
         cachedCharacter = c.character;
     }
     targetDelay += .0008f*(desiredDelay-targetDelay); // continuous string-length glide
-    const float d0 = targetDelay, d1=targetDelay*(1.f+planeDetune);
+    // Displacement increases string tension. The ensuing sharpened attack relaxes
+    // as the vibration decays, without a synthesised pitch envelope or LFO.
+    // Its small amount is model dependent and bounded to avoid runaway feedback.
+    const float strain = std::min(.0045f, strainSensitivity * strainEnergy);
+    const float d0 = targetDelay/(1.f+strain);
+    const float d1 = d0*(1.f+planeDetune);
     const float x = position(c.pluck);
     const float contactPos = .025f + .11f*(float(fret)/24.f);
     const float pickSample = .5f*(transverse[0].read(d0*x) + transverse[0].read(d0*(1.f-x)));
@@ -113,7 +139,8 @@ StringEngine::String::Output StringEngine::String::tick(
         const float pickTip = pickDepth * press * withdrawal;
         const float penetration=std::max(0.f,pickTip-pickSample);
         // Discrete compliant force with damping: no uncontrolled impulse injection.
-        pickForce=limit(0.f,.018f, .065f*penetration - .012f*pickVelocity);
+        pickForce=limit(0.f,.018f, .065f*pickStiffness*penetration
+                       - .012f*std::sqrt(pickStiffness)*pickVelocity);
         if (t>pickSlip) pickForce *= 1.f-smoothstep((t-pickSlip)/(1.f-pickSlip));
     }
     // Two-polarization injection: pick angle changes modal energy ratio, not a static EQ.
@@ -144,13 +171,27 @@ StringEngine::String::Output StringEngine::String::tick(
     // A stopped finger dissipates transverse motion; muting is velocity-dependent.
     const float damping = releasing ? .91f - .08f*c.touch : 1.f;
     const float gainPerRoundTrip = loopGain;
+    // Unequal energy losses in orthogonal displacement planes have a measurable
+    // effect on the changing harmonic spectrum during decay.
     const float materialLoss = (m==Model::nylon ? .18f : .06f)*(1.f-c.material);
     const float loss = limit(.014f,.37f,(1.f-c.brightness)*.16f + materialLoss + (m==Model::nylon?.09f:.015f));
     const float feedback = limit(-.007f,.007f,bridgeReaction)*(c.coupling*.11f + .012f);
-    const float wav0 = transverse[0].propagate(d0,gainPerRoundTrip*damping,loss,dispersion,feedback);
+    // Conservative passive polarization mixing: the two channels exchange motion
+    // with opposite sign. A very small coefficient avoids synthetic chorus beating.
+    const float w0 = transverse[0].read(d0*.26f);
+    const float w1 = transverse[1].read(d1*.26f);
+    const float exchange = polarizationExchange*(w1-w0);
+    waveExchange += .013f*(exchange-waveExchange);
+    const float wav0 = transverse[0].propagate(d0,gainPerRoundTrip*damping,loss,dispersion,feedback + waveExchange);
     const float wav1 = transverse[1].propagate(d1,gainPerRoundTrip*damping,
-                         limit(.014f,.42f,loss*1.28f),limit(.1f,.9f,dispersion+.14f),feedback*.62f);
+                         limit(.014f,.42f,loss*transverseLossRatio),limit(.1f,.9f,dispersion+.14f),
+                         feedback*.62f - waveExchange);
     const float bridge = .62f*wav0 + .38f*wav1;
+    // Strain energy is a low-pass of the string displacement in both planes;
+    // tension stiffening is not driven by a synthetic noise or randomness source.
+    const float excursion = std::min(1.f, wav0*wav0 + wav1*wav1);
+    const float strainAlpha = std::min(.035f, 120.f/sr);
+    strainEnergy += strainAlpha*(excursion-strainEnergy);
     out.bridge = bridge - previousBridge;
     previousBridge=bridge;
     out.fret=collision;
@@ -213,7 +254,10 @@ void StringEngine::Body::configure(float sr,Model model,float size,bool reset) n
         float f=fbase[i]/limit(.7f,1.4f,size);
         if(model==Model::electric) f*=1.35f;
         if(model==Model::nylon) f*=.93f;
-        const float q=(model==Model::electric?2.5f:7.f)+float(i)*.48f;
+        const float qBase = model==Model::electric ? 2.5f :
+                            model==Model::nylon ? 5.7f :
+                            model==Model::steel ? 8.1f : 7.0f;
+        const float q=qBase+float(i)*.48f;
         modes[i].configure(sr,f,q,strength[i],reset);
     }
     if(reset)clear();
