@@ -1,0 +1,35 @@
+name: Physical Model Guitar - Actual Recording Calibration
+on:
+  pull_request:
+    branches:
+      - main
+      - build/physical-model-guitar-v0.4
+  workflow_dispatch:
+  push:
+    branches:
+      - research/real-guitar-calibration
+jobs:
+  calibrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install analysis dependencies
+        run: python -m pip install numpy scipy soundfile
+      - name: Build physical-model offline renderer
+        run: |
+          cmake -S . -B build-calibration -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-calibration --parallel 2
+          ctest --test-dir build-calibration --output-on-failure
+      - name: Calibrate against actual guitar recordings (electric DI, acoustic steel, nylon)
+        run: |
+          python tools/CalibratePhysicalModel.py --render build-calibration/PMGOfflineRender --out calibration-results --maxfev 22
+      - name: Publish auditable metrics, not third-party recordings
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG-Actual-Recording-Calibration-Report
+          path: |
+            calibration-results/real-calibration-metrics.json
+            calibration-results/CALIBRATION_SUMMARY.md
+          retention-days: 90
+          if-no-files-found: error

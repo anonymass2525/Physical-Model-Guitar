@@ -25,13 +25,30 @@ int main(int argc,char**argv)
 {
     constexpr int sr=48000;
     // Usage: PMGOfflineRender --single model[1..3] midi[40..88] velocity[0..1] output.wav
-    if(argc==6 && std::string(argv[1])=="--single")
+    if(argc>=6 && std::string(argv[1])=="--single")
     {
         const int model=std::stoi(argv[2]);
         const int note=std::stoi(argv[3]);
         const float vel=std::stof(argv[4]);
         if(model<1||model>3||note<40||note>88||vel<=0||vel>1)return 2;
         pmg::Controls c;
+        // Optional reproducible calibration controls: --brightness=.7 --hardness=.6 --decay=4
+        for(int i=6;i<argc;++i)
+        {
+            std::string arg=argv[i];
+            const auto pos=arg.find('=');
+            if(pos==std::string::npos || arg.rfind("--",0)!=0) return 3;
+            const auto key=arg.substr(2,pos-2);
+            const float val=std::stof(arg.substr(pos+1));
+            if(!std::isfinite(val))return 3;
+            if(key=="brightness") c.brightness=std::clamp(val,0.f,1.f);
+            else if(key=="hardness") c.hardness=std::clamp(val,0.f,1.f);
+            else if(key=="decay") c.decay=std::clamp(val,.5f,12.f);
+            else if(key=="body") c.body=std::clamp(val,0.f,1.f);
+            else if(key=="pluck") c.pluck=std::clamp(val,.03f,.49f);
+            else if(key=="pickup") c.pickup=std::clamp(val,.03f,.49f);
+            else return 3;
+        }
         auto e=std::make_unique<pmg::ModelRack>();
         e->prepare(sr,pmg::Model(model),c);
         e->noteOn(note,vel);
