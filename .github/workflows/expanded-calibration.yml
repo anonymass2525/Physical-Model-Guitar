@@ -1,0 +1,32 @@
+name: PMG Experimental Per-String Physical Calibration
+on:
+  push:
+    branches:
+      - research/string-specific-calibration
+  workflow_dispatch:
+
+jobs:
+  multi-string-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install real-recording analysis dependencies
+        run: python -m pip install numpy scipy soundfile
+      - name: Build DSP and run all deterministic physical tests
+        run: |
+          cmake -S . -B build-research -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-research --parallel 2
+          ctest --test-dir build-research --output-on-failure
+      - name: Fit per-string parameters on larger, string-aware real recordings
+        run: |
+          python tools/LargeCorpusCalibrator.py --render build-research/PMGOfflineRender --out expanded-calibration-results --models electric steel nylon --max-samples 72
+      - name: Store metrics only (no copyrighted recordings or excerpts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG05-PerString-Physical-Calibration-Metrics
+          path: |
+            expanded-calibration-results/report.json
+            expanded-calibration-results/SUMMARY.md
+          if-no-files-found: error
+          retention-days: 90

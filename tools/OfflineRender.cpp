@@ -32,6 +32,7 @@ int main(int argc,char**argv)
         const float vel=std::stof(argv[4]);
         if(model<1||model>3||note<40||note>88||vel<=0||vel>1)return 2;
         pmg::Controls c;
+        int forcedString=-1;
         // Optional reproducible calibration controls: --brightness=.7 --hardness=.6 --decay=4
         for(int i=6;i<argc;++i)
         {
@@ -41,7 +42,31 @@ int main(int argc,char**argv)
             const auto key=arg.substr(2,pos-2);
             const float val=std::stof(arg.substr(pos+1));
             if(!std::isfinite(val))return 3;
-            if(key=="brightness") c.brightness=std::clamp(val,0.f,1.f);
+            if(key=="string") forcedString=int(val);
+            else if(key.rfind("contact",0)==0 && key.size()==8) {
+                const int k=key[7]-'0';if(k<0||k>5)return 3;
+                c.calibration.contactStiffness[size_t(k)]=std::clamp(val,.4f,2.5f);
+            }
+            else if(key.rfind("pickup-offset",0)==0 && key.size()==14) {
+                const int k=key[13]-'0';if(k<0||k>5)return 3;
+                c.calibration.pickupOffset[size_t(k)]=std::clamp(val,-.08f,.08f);
+            }
+            else if(key.rfind("loss",0)==0 && key.size()==6) {
+                const int k=key[4]-'0',band=key[5]-'0';
+                if(k<0||k>5||band<0||band>3)return 3;
+                c.calibration.spectralLoss[size_t(k)][size_t(band)]=std::clamp(val,0.f,.34f);
+            }
+            else if(key.rfind("mode",0)==0) {
+                const auto split=key.find('-',4);
+                if(split==std::string::npos)return 3;
+                const int k=std::stoi(key.substr(4,split-4));if(k<0||k>=10)return 3;
+                const auto field=key.substr(split+1);
+                if(field=="freq")c.calibration.modeFrequency[size_t(k)]=std::clamp(val,.7f,1.4f);
+                else if(field=="q")c.calibration.modeQ[size_t(k)]=std::clamp(val,.4f,2.5f);
+                else if(field=="gain")c.calibration.modeGain[size_t(k)]=std::clamp(val,.25f,2.f);
+                else return 3;
+            }
+            else if(key=="brightness") c.brightness=std::clamp(val,0.f,1.f);
             else if(key=="hardness") c.hardness=std::clamp(val,0.f,1.f);
             else if(key=="decay") c.decay=std::clamp(val,.5f,12.f);
             else if(key=="body") c.body=std::clamp(val,0.f,1.f);
@@ -49,9 +74,10 @@ int main(int argc,char**argv)
             else if(key=="pickup") c.pickup=std::clamp(val,.03f,.49f);
             else return 3;
         }
-        auto e=std::make_unique<pmg::ModelRack>();
+        auto e=std::make_unique<pmg::StringEngine>();
         e->prepare(sr,pmg::Model(model),c);
-        e->noteOn(note,vel);
+        if(forcedString>=0) { if(!e->noteOnString(note,vel,forcedString))return 4; }
+        else e->noteOn(note,vel);
         std::vector<float> audio;
         audio.reserve(size_t(sr*2*2));
         for(int i=0;i<sr*2;++i)

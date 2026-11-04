@@ -8,12 +8,27 @@ enum class Model : int { original, electric, steel, nylon };
 inline constexpr const char *modelNames[] = {"Hybrid Guitar", "Electric", "Steel Acoustic", "Classical Nylon"};
 
 // All parameter fields are fixed-capacity POD. No allocation or locks on the audio thread.
+// Research-only per-string/structural inverse-model coefficients. Neutral values
+// reproduce the v0.4 DSP; all are fixed-size POD, safe to copy on audio thread.
+struct PhysicalCalibration
+{
+    std::array<float, 6> contactStiffness{{1.f, 1.f, 1.f, 1.f, 1.f, 1.f}};
+    std::array<float, 6> pickupOffset{{0.f, 0.f, 0.f, 0.f, 0.f, 0.f}};
+    // Four ordered frequency bands per string, extra per-roundtrip amplitude loss.
+    // A constrained positive lowpass mixture (rather than free 8-peak EQ) remains passive.
+    std::array<std::array<float, 4>, 6> spectralLoss{};
+    std::array<float, 10> modeFrequency{{1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f}};
+    std::array<float, 10> modeQ{{1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f}};
+    std::array<float, 10> modeGain{{1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f,1.f}};
+};
+
 struct Controls
 {
     float decay = 4.f, brightness = .72f, pluck = .18f, pickup = .15f;
     float hardness = .6f, body = .24f, size = 1.f, output = -3.f;
     float material = .5f, character = .5f, coupling = .45f, touch = .5f;
     float pickAngle = .4f, fretClearance = .65f, pickupAperture = .5f, bridgeMobility = .5f;
+    PhysicalCalibration calibration{};
 };
 
 struct StereoFrame { float left = 0.f, right = 0.f; };
@@ -30,6 +45,8 @@ public:
     void prepare(double rate, Model model, const Controls& controls) noexcept;
     void setControls(const Controls& controls) noexcept;
     void noteOn(int note, float velocity) noexcept;
+    // For calibration/playability constraints: 0=low E through 5=high E.
+    bool noteOnString(int note, float velocity, int physicalString) noexcept;
     void noteOff(int note) noexcept;
     void allNotesOff() noexcept;
     void setPitchBend(float semitones) noexcept;
@@ -48,9 +65,12 @@ private:
         std::array<float, delayBufferSize> history{};
         int index = 0;
         float previous = 0, dispersionState = 0, previousPickup = 0;
+        std::array<float,3> spectralState{};
         float read(float delay) const noexcept;
         void clear() noexcept;
-        float propagate(float delay, float gain, float loss, float dispersion, float injected) noexcept;
+        float propagate(float delay, float gain, float loss, float dispersion, float injected,
+                        const std::array<float,4>& spectralLoss,
+                        const std::array<float,3>& spectralAlpha) noexcept;
         // Two-sided perturbation of displacement-wave history at a local contact.
         void scatter(float location, float force, float delay) noexcept;
     };
@@ -76,6 +96,8 @@ private:
         float pickStiffness = 1.f, strainSensitivity = 0.f;
         float transverseLossRatio = 1.3f, polarizationExchange = .0002f;
         float attackTimeScale = 1.f;
+        std::array<float,4> perBandLoss{};
+        std::array<float,3> perBandAlpha{};
         void start(int n, int stringNo, int fretNo, float velocity,
                    float rate, Model m, const Controls& controls) noexcept;
         struct Output { float bridge = 0, electric = 0, direct = 0, fret = 0; };
@@ -94,7 +116,7 @@ private:
         std::array<Mode, 10> modes{};
         float feedback = 0, lowpass = 0;
         StereoFrame radiated{};
-        void configure(float sr, Model model, float size, bool reset) noexcept;
+        void configure(float sr, Model model, float size, const PhysicalCalibration& calibration, bool reset) noexcept;
         void clear() noexcept;
         void tick(float bridgeForce, float coupling, float mobility) noexcept;
     };

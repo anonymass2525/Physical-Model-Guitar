@@ -23,9 +23,12 @@ float StringEngine::Waveguide::read(float delay) const noexcept
 void StringEngine::Waveguide::clear() noexcept
 {
     history.fill(0.f); index=0; previous=dispersionState=previousPickup=0;
+    spectralState.fill(0.f);
 }
 float StringEngine::Waveguide::propagate(float delay, float gain, float loss,
-                                         float dispersion, float injected) noexcept
+                                         float dispersion, float injected,
+                                         const std::array<float,4>& bandLoss,
+                                         const std::array<float,3>& spectralAlpha) noexcept
 {
     const float returned = read(delay);
     const float filtered = (1.f-loss)*returned + loss*previous;
@@ -33,7 +36,22 @@ float StringEngine::Waveguide::propagate(float delay, float gain, float loss,
     // Stable unit-magnitude first-order allpass: dispersion, not artificial detuning.
     const float dispersed = dispersion*filtered + dispersionState;
     dispersionState = filtered - dispersion*dispersed;
-    history[size_t(index)] = limit(-2.f, 2.f, gain*dispersed + injected);
+    float physicallyDamped=dispersed;
+    // Passivity-preserving mixture: monotone damping across frequency bands
+    // means every coefficient below is nonnegative and sums to <= 1.
+    const float b0=limit(0.f,.22f,bandLoss[0]);
+    const float b1=limit(b0,.26f,bandLoss[1]);
+    const float b2=limit(b1,.30f,bandLoss[2]);
+    const float b3=limit(b2,.34f,bandLoss[3]);
+    if(b3>0.f)
+    {
+        for(int k=0;k<3;++k)
+            spectralState[size_t(k)] += spectralAlpha[size_t(k)]*(dispersed-spectralState[size_t(k)]);
+        physicallyDamped=(b1-b0)*spectralState[0]
+                        +(b2-b1)*spectralState[1]
+                        +(b3-b2)*spectralState[2]+(1.f-b3)*dispersed;
+    }
+    history[size_t(index)] = limit(-2.f, 2.f, gain*physicallyDamped + injected);
     index = (index+1) & delayBufferMask;
     return returned;
 }
@@ -84,6 +102,17 @@ void StringEngine::String::start(int n, int stringNo, int fretNo, float velocity
         pickStiffness = 1.f; strainSensitivity = .0028f;
         transverseLossRatio = 1.28f; polarizationExchange = .00024f;
         attackTimeScale = 1.f;
+    }
+    const auto idx=size_t(limit(0,5,stringNumber));
+    pickStiffness *= limit(.4f,2.5f,c.calibration.contactStiffness[idx]);
+    perBandLoss = c.calibration.spectralLoss[idx];
+    // Frequency-relative loss bands: fundamental, low, upper, very high partials.
+    // The cutoff is calculated per physically assigned string and fret.
+    for(int k=0;k<3;++k)
+    {
+        const float ratio=k==0?2.3f:k==1?4.8f:8.7f;
+        const float fc=limit(80.f,sr*.40f,frequency*ratio);
+        perBandAlpha[size_t(k)]=1.f-std::exp(-2.f*pi*fc/sr);
     }
     // Pick deflection follows velocity nonlinearly; force is released by a slip event.
     pickDepth = (.035f + .13f*noteVelocity*noteVelocity)*(m==Model::nylon ? .74f:1.f);
@@ -182,10 +211,11 @@ StringEngine::String::Output StringEngine::String::tick(
     const float w1 = transverse[1].read(d1*.26f);
     const float exchange = polarizationExchange*(w1-w0);
     waveExchange += .013f*(exchange-waveExchange);
-    const float wav0 = transverse[0].propagate(d0,gainPerRoundTrip*damping,loss,dispersion,feedback + waveExchange);
+    const float wav0 = transverse[0].propagate(d0,gainPerRoundTrip*damping,loss,dispersion,feedback + waveExchange,
+                            perBandLoss,perBandAlpha);
     const float wav1 = transverse[1].propagate(d1,gainPerRoundTrip*damping,
                          limit(.014f,.42f,loss*transverseLossRatio),limit(.1f,.9f,dispersion+.14f),
-                         feedback*.62f - waveExchange);
+                         feedback*.62f - waveExchange,perBandLoss,perBandAlpha);
     const float bridge = .62f*wav0 + .38f*wav1;
     // Strain energy is a low-pass of the string displacement in both planes;
     // tension stiffening is not driven by a synthetic noise or randomness source.
@@ -198,7 +228,7 @@ StringEngine::String::Output StringEngine::String::tick(
     // Radiated direct sound for acoustic styles: mixture of velocity and curvature.
     out.direct=(.62f*wav0+.38f*wav1)*.27f + out.bridge*.66f;
     // 5: finite pickup aperture spatially averages vibration before differentiation.
-    const float px=position(c.pickup);
+    const float px=position(c.pickup + limit(-.08f,.08f,c.calibration.pickupOffset[size_t(stringNumber)]));
     const float aperture = .003f + c.pickupAperture*.074f;
     const auto tap = [&](float pos) noexcept
     {
@@ -244,21 +274,22 @@ float StringEngine::Mode::tick(float force) noexcept
     y2=y1; y1=std::isfinite(y)?limit(-10.f,10.f,y):0.f;
     return y1;
 }
-void StringEngine::Body::configure(float sr,Model model,float size,bool reset) noexcept
+void StringEngine::Body::configure(float sr,Model model,float size,
+                                   const PhysicalCalibration& calibration,bool reset) noexcept
 {
     // A compact 10-mode mechanical admittance, not an FIR/recorded impulse response.
     constexpr float fbase[]{82,111,182,210,284,397,535,742,1020,1580};
     constexpr float strength[]{.33f,.44f,.45f,.32f,.25f,.17f,.13f,.09f,.06f,.035f};
     for (size_t i=0;i<modes.size();++i)
     {
-        float f=fbase[i]/limit(.7f,1.4f,size);
+        float f=fbase[i]*limit(.70f,1.40f,calibration.modeFrequency[i])/limit(.7f,1.4f,size);
         if(model==Model::electric) f*=1.35f;
         if(model==Model::nylon) f*=.93f;
         const float qBase = model==Model::electric ? 2.5f :
                             model==Model::nylon ? 5.7f :
                             model==Model::steel ? 8.1f : 7.0f;
-        const float q=qBase+float(i)*.48f;
-        modes[i].configure(sr,f,q,strength[i],reset);
+        const float q=(qBase+float(i)*.48f)*limit(.4f,2.5f,calibration.modeQ[i]);
+        modes[i].configure(sr,f,q,strength[i]*limit(.25f,2.f,calibration.modeGain[i]),reset);
     }
     if(reset)clear();
 }
@@ -295,7 +326,7 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
         strings[i].active=false;
     }
     controls=c;
-    acousticBody.configure(rate,m,c.size,true);
+    acousticBody.configure(rate,m,c.size,c.calibration,true);
     gain=std::pow(10.f,c.output*.05f);
     smoothedOutput=gain;
     smoothedBody=c.body;
@@ -305,8 +336,15 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
 }
 void StringEngine::setControls(const Controls& c) noexcept
 {
-    if(std::abs(c.size-controls.size)>.0005f)
-        acousticBody.configure(rate,model,c.size,false); // preserve moving modal states
+    bool bodyChanged=std::abs(c.size-controls.size)>.0005f;
+    for(int i=0;i<10 && !bodyChanged;++i) {
+        const auto j=size_t(i);
+        bodyChanged = c.calibration.modeFrequency[j]!=controls.calibration.modeFrequency[j]
+                   || c.calibration.modeQ[j]!=controls.calibration.modeQ[j]
+                   || c.calibration.modeGain[j]!=controls.calibration.modeGain[j];
+    }
+    if(bodyChanged)
+        acousticBody.configure(rate,model,c.size,c.calibration,false); // smooth coefficients, retain motion
     controls=c;
     gain=std::pow(10.f,limit(-36.f,12.f,c.output)*.05f);
 }
@@ -328,6 +366,14 @@ void StringEngine::noteOn(int note,float velocity) noexcept
     if(selected<0) return;
     // A new attack on a string interrupts its prior wave state, as on a guitar.
     strings[size_t(selected)].start(note,selected,note-tuning[size_t(selected)],velocity,rate,model,controls);
+}
+bool StringEngine::noteOnString(int note,float velocity,int physicalString) noexcept
+{
+    if(physicalString<0 || physicalString>=maxVoices || velocity<=0.f) return false;
+    const int fret=note-tuning[size_t(physicalString)];
+    if(fret<0 || fret>24) return false;
+    strings[size_t(physicalString)].start(note,physicalString,fret,velocity,rate,model,controls);
+    return true;
 }
 void StringEngine::noteOff(int note) noexcept
 {
