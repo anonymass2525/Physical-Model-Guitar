@@ -1,0 +1,38 @@
+{
+  "PMG03_0_Hybrid Guitar.wav": {
+    "sample_rate": 48000,
+    "duration_sec": 9.0,
+    "peak": 0.069458,
+    "rms": 0.012633,
+    "lr_difference_rms": 0.00010505,
+    "first_note_dominant_hz": 165.0,
+    "note": "E3; FFT dominant may be harmonic-dependent"
+  },
+  "PMG03_1_Electric.wav": {
+    "sample_rate": 48000,
+    "duration_sec": 9.0,
+    "peak": 0.420807,
+    "rms": 0.05136,
+    "lr_difference_rms": 3.01e-06,
+    "first_note_dominant_hz": 330.0,
+    "note": "E3; FFT dominant may be harmonic-dependent"
+  },
+  "PMG03_2_Steel Acoustic.wav": {
+    "sample_rate": 48000,
+    "duration_sec": 9.0,
+    "peak": 0.060425,
+    "rms": 0.010222,
+    "lr_difference_rms": 0.00023952,
+    "first_note_dominant_hz": 165.0,
+    "note": "E3; FFT dominant may be harmonic-dependent"
+  },
+  "PMG03_3_Classical Nylon.wav": {
+    "sample_rate": 48000,
+    "duration_sec": 9.0,
+    "peak": 0.059784,
+    "rms": 0.011017,
+    "lr_difference_rms": 0.00025379,
+    "first_note_dominant_hz": 165.0,
+    "note": "E3; FFT dominant may be harmonic-dependent"
+  }
+}
