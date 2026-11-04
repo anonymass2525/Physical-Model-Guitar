@@ -1,0 +1,30 @@
+name: Physical Model Guitar 0.3 - Windows VST3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+jobs:
+  windows-vst3:
+    runs-on: windows-2022
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure
+        shell: pwsh
+        run: cmake -S . -B build-win -A x64 -DPMG_BUILD_PLUGIN=ON -DBUILD_TESTING=ON
+      - name: Build Release
+        shell: pwsh
+        run: cmake --build build-win --config Release --parallel 2
+      - name: Run native tests
+        shell: pwsh
+        run: ctest --test-dir build-win -C Release --output-on-failure
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhysicalModelGuitar-0.3-Windows-x64-VST3
+          path: build-win/PhysicalModelGuitar_artefacts/Release/VST3/
+          retention-days: 90
+          if-no-files-found: error
