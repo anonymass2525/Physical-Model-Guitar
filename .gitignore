@@ -1,0 +1,12 @@
+/build/
+/build-*/
+/artifacts/
+/logs/*.log
+/logs/*.exit.txt
+/cmake-build-*/
+.vs/
+.vscode/
+*.user
+*.suo
+*.sdf
+*.VC.db
