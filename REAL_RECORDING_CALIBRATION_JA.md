@@ -1,39 +1,32 @@
-# Physical Model Guitar 0.4 — 実録音比較・校正手順
+# 実ギター録音と物理モデルの比較校正（研究版）
 
-## 大前提
+対象: Electric / Steel Acoustic / Classical Nylon。実録音をプラグインに搭載するのではなく、**DSPの外側で特徴量を計算して校正**します。音源は一貫して物理演算による合成です。
 
-0.4は **実録音に対する物理パラメーターの最適化を完了したものではありません**。
-0.3コードから、モデル固有の接触剛性・弦の二方向減衰・振幅依存張力・微小な偏波間エネルギー交換を実装し、ローカルDSPのテストに合格した段階です。従って「実ギターと聴き分けられない」という保証はありません。
+参照資料:
+- Electric: `collegefishiesd/guitar-fretboard-notes` (`source=ele`、Stratocaster DI。CC BY-SA 4.0) https://huggingface.co/datasets/collegefishiesd/guitar-fretboard-notes
+- Steel / Nylon: Meta Open Sound, 各弦・音高・強弱が識別できる録音。CC0 1.0 https://github.com/facebookincubator/Meta-open-sound
+- Metaの本リポジトリにあるOGGは**プレビュー用非可逆圧縮**です。ここでの結果は予備校正であり、最終校正には48kHz/24bitの正式WAV、適切なDIまたはマイク条件が必要です。
 
-### 参考音声の候補
-- Electric：EGFxSet の clean/DI（https://egfxset.github.io/ ）
-- Steel/Nylon：Meta Open Sound の実ギター録音（https://github.com/facebookincubator/Meta-open-sound ）
-- Meta Open Sound のギター録音はCC0。録音条件、弦番号、ノート、ベロシティを合わせる。
-- これらの録音データは本プラグインのバイナリには含めない。
+## 手順
 
-### 48kHzモノ音声を比較する
+```
+python -m pip install numpy scipy soundfile
+cmake -S . -B build -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+cmake --build build --config Release
+python tools/CalibratePhysicalModel.py --render build/PMGOfflineRender --out calibration-results
+```
 
-    # 生ギター同一音程を WAV に用意する（例: E3, MIDI 52）
-    cmake -S . -B build -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
-    cmake --build build --config Release
-    ./build/PMGOfflineRender --single 2 52 0.75 PMG04_Steel_E3.wav
-    python -m pip install numpy scipy soundfile
-    python tools/CompareRealGuitar.py --reference Real_Steel_E3.wav --synthetic PMG04_Steel_E3.wav --midi 52 --kind steel --out steel_E3_report.json
+`tools/OfflineRender.cpp`に任意の校正用パラメータ (`--brightness`, `--hardness`, `--decay`, etc.) を追加し、DSP内部の発音条件を変えて比較します。
 
-`--single` のmodel番号は Electric=1、Steel=2、Nylon=3。録音の準備ができていれば同じ方法で比較可能。
+## 比較内容
 
-### 比較指標
-1. 発音後0–10、10–30、30–60、60–100、100–200 msの音量差（RMS一致後）
-2. 発音直後のスペクトル重心差
-3. 基音と2–16倍音のレベル、および各倍音の減衰傾斜 (dB/sec)
-4. 初期音程偏差 (cent) と最大1秒までの時間変化
-5. 倍音レベルの滑らかな指数減衰からの偏差（揺れの測度）
+- **学習**: E2 / A2 / D3（弦とフレットを明示して突き合わせる）。
+- **検証**: G3 / B3 / E4（学習に使わない音高）。
+- 0-15 / 15-40 / 40-80 / 80-140 / 140-280 / 280-550ms のレベル曲線。
+- 1〜8倍音の時間依存減衰と初期相対強度。
+- 初期から後期にかけた相対音高変化。
+- 重み付け距離は**測定用の代理指標**。実ギターとの聴感等価性を表さない。
+- 元の音量・絶対的なEQ特性を単純に一致させるとマイクやピックアップ条件に過剰適合するため、相対特徴量を優先。
+- 学習と保留ノートで両方改善しなければ`accepted_by_holdout_gate=false`。改善判定されても実機での聴き比べを経るまではプラグインの既定値に自動で反映しない。
 
-異なるDI、アンプ、マイク位置、録音室、EQ、ピックアップ設定では数値が大きく変わる。発音源の物理性と録音経路の違いを混同しない。特にElectricは必ず非加工DIを使用する。
-複数回弾いた参照音の分布からバラツキを比較する。単発録音への最適化は過学習になりうる。
-
-## まだ未完了
-- 実録音ファイルを読み込んだ同条件での校正結果
-- 実録音に基づくモデル別パラメーターフィッティング
-- ブラインド聴取評価、Studio Oneでの実機試験、pluginval
-- Inno Setup生成後のWindowsでのインストール/アンインストール動作
+参照ファイルはCI実行中のみ取り込み、Artifactにアップロードしません。必要なライセンス表記と元URL、解析値のみを保存します。
