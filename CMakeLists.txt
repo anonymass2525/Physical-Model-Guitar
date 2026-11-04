@@ -33,11 +33,11 @@ if(PMG_BUILD_PLUGIN)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
         COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.realism2"
+        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.calibrationresearch"
         PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE PmG4
-        PRODUCT_NAME "Physical Model Guitar 0.4"
-        DESCRIPTION "Six-string coupled waveguide guitar with nonlinear contacts"
+        PLUGIN_CODE PmG5
+        PRODUCT_NAME "Physical Model Guitar 0.5 Research"
+        DESCRIPTION "Experimental independently calibrated physical guitar; v0.4 neutral default"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
         FORMATS VST3 Standalone VST3_CATEGORIES Instrument)

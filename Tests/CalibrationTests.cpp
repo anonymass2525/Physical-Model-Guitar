@@ -1,4 +1,5 @@
 #include "../DSP/StringEngine.h"
+#include "../DSP/CalibrationProfiles.h"
 #include <cmath>
 #include <iostream>
 #include <iomanip>
@@ -50,6 +51,17 @@ try{
     other=neutral;other.coupling=0.f;other.calibration.pickupOffset[1]=.035f;
     auto coupledOff=neutral;coupledOff.coupling=0.f;
     require(std::abs(run(0,1,other)-run(0,1,coupledOff))<1e-7,"pickup leaks without coupling");
+    // Candidate presets are opt-in and only affect independently validated strings.
+    for(const auto pair : {std::pair<int,int>{1,5}, {2,1}, {3,3}}) {
+        pmg::Controls baselineSettings, matchedSettings;
+        pmg::applyHeldoutCandidates(pmg::Model(pair.first),matchedSettings.calibration);
+        const double oldAudio=run(pair.second,pair.first,baselineSettings);
+        const double newAudio=run(pair.second,pair.first,matchedSettings);
+        require(std::abs(oldAudio-newAudio)>1e-6,"heldout candidate does not affect sound");
+    }
+    pmg::Controls originalSettings;
+    pmg::applyHeldoutCandidates(pmg::Model::original,originalSettings.calibration);
+    require(originalSettings.calibration.contactStiffness[0]==1.f,"Original must remain neutral");
     // Impossible string/fret combinations must be rejected, not silently remapped.
     auto engine=std::make_unique<pmg::StringEngine>();engine->prepare(48000.,pmg::Model::steel,neutral);
     require(!engine->noteOnString(40,.8f,5),"low E erroneously assignable to high E");

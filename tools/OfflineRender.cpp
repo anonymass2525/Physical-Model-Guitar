@@ -1,4 +1,5 @@
 #include "../DSP/ModelRack.h"
+#include "../DSP/CalibrationProfiles.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -33,6 +34,7 @@ int main(int argc,char**argv)
         if(model<1||model>3||note<40||note>88||vel<=0||vel>1)return 2;
         pmg::Controls c;
         int forcedString=-1;
+        bool measured=false;
         // Optional reproducible calibration controls: --brightness=.7 --hardness=.6 --decay=4
         for(int i=6;i<argc;++i)
         {
@@ -42,7 +44,8 @@ int main(int argc,char**argv)
             const auto key=arg.substr(2,pos-2);
             const float val=std::stof(arg.substr(pos+1));
             if(!std::isfinite(val))return 3;
-            if(key=="string") forcedString=int(val);
+            if(key=="measured") measured=val>.5f;
+            else if(key=="string") forcedString=int(val);
             else if(key.rfind("contact",0)==0 && key.size()==8) {
                 const int k=key[7]-'0';if(k<0||k>5)return 3;
                 c.calibration.contactStiffness[size_t(k)]=std::clamp(val,.4f,2.5f);
@@ -74,6 +77,7 @@ int main(int argc,char**argv)
             else if(key=="pickup") c.pickup=std::clamp(val,.03f,.49f);
             else return 3;
         }
+        if(measured) pmg::applyHeldoutCandidates(pmg::Model(model),c.calibration);
         auto e=std::make_unique<pmg::StringEngine>();
         e->prepare(sr,pmg::Model(model),c);
         if(forcedString>=0) { if(!e->noteOnString(note,vel,forcedString))return 4; }
