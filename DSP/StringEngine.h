@@ -28,6 +28,7 @@ struct Controls
     float hardness = .6f, body = .24f, size = 1.f, output = -3.f;
     float material = .5f, character = .5f, coupling = .45f, touch = .5f;
     float pickAngle = .4f, fretClearance = .65f, pickupAperture = .5f, bridgeMobility = .5f;
+    bool physics06 = false; // exact v0.5 fallback, override via new plugin parameter
     PhysicalCalibration calibration{};
 };
 
@@ -93,6 +94,11 @@ private:
         // and independent longitudinal/transverse losses. The coefficients are physical
         // approximations and require validation against matched clean recordings.
         float strainEnergy = 0.f, waveExchange = 0.f;
+        // One effective longitudinal modal degree of freedom per string.
+        // It is NOT the full longitudinal wave equation.
+        float longitudinalDisplacement = 0.f, longitudinalVelocity = 0.f;
+        float longitudinalBridge = 0.f, longitudinalFrequency = 0.f;
+        float tangentialDeflection = 0.f, previousPickTip = 0.f;
         float pickStiffness = 1.f, strainSensitivity = 0.f;
         float transverseLossRatio = 1.3f, polarizationExchange = .0002f;
         float attackTimeScale = 1.f;
