@@ -2,7 +2,7 @@
 """Physical Model Guitar v0.8: controlled, feature-distance comparison against real recordings.
 
 This does NOT claim perceptual or physical-identification equivalence. The same
-reference is scored against v0.7 (legacy) and v0.8 (new distributed contacts).
+reference is scored against v0.7 (legacy) and v0.8 (new bridge dynamics).
 """
 import argparse, json, tempfile, subprocess
 from pathlib import Path
@@ -46,7 +46,7 @@ def run(args):
                      'Not a same-instrument matched set. Cannot identify physical parameters uniquely.',
                      'This benchmark examines only individual plucks. Repeated note carryover needs a separate test.',
                      'A reduction in this objective distance cannot establish perceptual superiority.']}
-    (args.out/'physics08_vs_06.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
+    (args.out/'physics08_vs_07.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
     print('RESULTS',json.dumps(report),flush=True)
 
 if __name__=='__main__':
