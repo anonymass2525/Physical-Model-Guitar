@@ -16,18 +16,18 @@ def run(args):
     with tempfile.TemporaryDirectory() as temp:
         root=Path(temp)
         for take in gather(root):
-            ref=features(take['path'],take['note'])
+            ref=features(take['path'],take['midi'])
             scores={}
             model={'electric':1,'steel':2,'nylon':3}[take['kind']]
             for name,enabled in [('physics06',False),('physics07',True)]:
                 out=root/'render.wav'
-                subprocess.run([str(args.render),'--single',str(model),str(take['note']),'.65',str(out),
+                subprocess.run([str(args.render),'--single',str(model),str(take['midi']),'.65',str(out),
                                 f'--string={take["string"]}','--physics06=1',
                                 f'--physics07={int(enabled)}'],check=True,stdout=subprocess.DEVNULL)
-                score,detail=distance(ref,features(out,take['note']))
+                score,detail=distance(ref,features(out,take['midi']))
                 scores[name]={'score':float(score),'components':detail}
             rec={'kind':take['kind'],'string':take['string'],'fret':take['fret'],
-                 'midi':take['note'],**scores,
+                 'midi':take['midi'],**scores,
                  'delta':scores['physics07']['score']-scores['physics06']['score']}
             records.append(rec)
             print(f"BENCH {rec['kind']} str{rec['string']} note{rec['midi']} "
