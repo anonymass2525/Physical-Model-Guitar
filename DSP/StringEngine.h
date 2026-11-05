@@ -28,7 +28,11 @@ struct Controls
     float hardness = .6f, body = .24f, size = 1.f, output = -3.f;
     float material = .5f, character = .5f, coupling = .45f, touch = .5f;
     float pickAngle = .4f, fretClearance = .65f, pickupAperture = .5f, bridgeMobility = .5f;
-    bool physics06 = false; // exact v0.5 fallback, override via new plugin parameter
+    // Opt-in numerical mechanics extension. False preserves v0.5 reference.
+    bool physics06 = false;
+    // Experimental v0.7: distributed unilateral fret contacts and energy-preserving reattack.
+    // False is a bit-exact v0.6 code path.
+    bool physics07 = false;
     PhysicalCalibration calibration{};
 };
 
@@ -94,11 +98,18 @@ private:
         // and independent longitudinal/transverse losses. The coefficients are physical
         // approximations and require validation against matched clean recordings.
         float strainEnergy = 0.f, waveExchange = 0.f;
-        // One effective longitudinal modal degree of freedom per string.
-        // It is NOT the full longitudinal wave equation.
+        // Single longitudinal modal degree of freedom, coupled through geometric
+        // stretching of the pair of transverse waveguides. This is an effective
+        // reduced-order longitudinal mode, not a discretised longitudinal PDE.
         float longitudinalDisplacement = 0.f, longitudinalVelocity = 0.f;
-        float longitudinalBridge = 0.f, longitudinalFrequency = 0.f;
+        float longitudinalBridge = 0.f, longitudinalFrequency = .0f;
+        // Compliant pick tangential stick / slip state. Zero at a new note.
         float tangentialDeflection = 0.f, previousPickTip = 0.f;
+        std::array<float, 5> fretContactHistory{};
+        std::array<float, 5> fretLocation{};
+        std::array<float, 5> fretHeightMultiplier{};
+        int availableContactFrets = 0;
+        float fretContactMemory = 0.f;
         float pickStiffness = 1.f, strainSensitivity = 0.f;
         float transverseLossRatio = 1.3f, polarizationExchange = .0002f;
         float attackTimeScale = 1.f;

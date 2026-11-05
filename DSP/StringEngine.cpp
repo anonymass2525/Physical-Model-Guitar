@@ -69,7 +69,23 @@ void StringEngine::Waveguide::scatter(float location, float force, float delay) 
 void StringEngine::String::start(int n, int stringNo, int fretNo, float velocity,
                                  float sr, Model m, const Controls& c) noexcept
 {
-    for (auto& w : transverse) w.clear();
+    // A fresh strike does not destroy the energy of an already vibrating string.
+    // Retain a small fraction for a repeated note; if fret changes, the finger
+    // damps the old string more strongly, as in a real repositioning gesture.
+    // This operation happens at note-on (not in the per-sample tick loop).
+    const bool reattack = c.physics07 && (active || rms > 1.e-10f) && noteAge > 12;
+    const float retain = (midiNote == n ? .21f : .055f);
+    if (reattack)
+    {
+        for (auto& w : transverse)
+        {
+            for (float& sample : w.history) sample *= retain;
+            w.previous *= retain;
+            w.dispersionState *= retain;
+            for (float& v : w.spectralState) v *= retain;
+        }
+    }
+    else for (auto& w : transverse) w.clear();
     midiNote=n; stringNumber=stringNo; fret=fretNo;
     active=true; releasing=false; noteAge=0; rms=0;
     noteVelocity=limit(0.f, 1.f, velocity);
@@ -88,6 +104,19 @@ void StringEngine::String::start(int n, int stringNo, int fretNo, float velocity
     waveExchange = 0.f;
     longitudinalDisplacement=longitudinalVelocity=longitudinalBridge=0.f;
     tangentialDeflection=previousPickTip=0.f;
+    fretContactHistory.fill(0.f);
+    fretContactMemory=0.f;
+    availableContactFrets=limit(0,5,24-fretNo);
+    for(int k=0;k<availableContactFrets;++k)
+    {
+        const float relativeFret=float(k+1);
+        fretLocation[size_t(k)]=position(1.f-std::pow(2.f,-relativeFret/12.f));
+        fretHeightMultiplier[size_t(k)]=(.45f+.085f*relativeFret)
+                                  *(1.f+.028f*std::sin(2.3f*float(k+fretNo)));
+    }
+    // Saturated reduced-order longitudinal resonance: from the open-string
+    // longitudinal stiffness and vibrating length, with anti-alias headroom.
+    // Frequencies are effective model values pending sensor calibration.
     const float lscale=m==Model::nylon?5.8f:m==Model::steel?9.2f:10.5f;
     longitudinalFrequency=limit(200.f,sr*.11f,frequency*lscale);
     if (m == Model::electric) {
@@ -185,7 +214,8 @@ StringEngine::String::Output StringEngine::String::tick(
     const float f1=45.f*pickForce*(1.f-.52f*angle);
     if(c.physics06 && active && noteAge < contactLength)
     {
-        // Velocity dependent Stribeck-like tangential friction.
+        // Spring and bounded Stribeck friction. The tangential compliance is
+        // only active during pick/string contact, never an artificial LFO.
         const float tip=pickDepth*smoothstep(float(noteAge)/(contactLength*.44f));
         const float vtip=tip-previousPickTip;
         previousPickTip=tip;
@@ -198,6 +228,7 @@ StringEngine::String::Output StringEngine::String::tick(
         tangentialDeflection += .06f*(deflectionDrive-tangentialDeflection);
         const float frictionImpulse=limit(-.0015f,.0015f,
             tangentialDeflection*friction*.12f + vrel*friction*.016f);
+        // Smoothly lose contact: avoids a velocity step at pick release.
         const float release=1.f-smoothstep((float(noteAge)/contactLength-pickSlip)/
                                           std::max(.03f,1.f-pickSlip));
         transverse[0].scatter(x,frictionImpulse*release,d0);
@@ -206,24 +237,69 @@ StringEngine::String::Output StringEngine::String::tick(
     transverse[0].scatter(x,f0,d0);
     transverse[1].scatter(x,f1*.78f,d1);
 
-    // 4: Fret/finger one-sided contact. Rattling is caused by penetrating the
-    // clearance threshold and an opposing spring-damper reaction, not noise samples.
-    float collision=0;
-    const float vAtFret = .5f*(transverse[0].read(d0*contactPos) +
-                                 transverse[0].read(d0*(1.f-contactPos)));
-    // Material/touch influence action; realistic contact requires adjustable gap.
-    const float clearance = .001f + .14f*limit(0.f,1.f,c.fretClearance)
-                            + .020f*limit(0.f,1.f,c.touch);
-    if (vAtFret < -clearance)
+    // 4: Distributed fret/finger contact. In v0.6 a single contact junction
+    // approximated all frets. v0.7 uses up to five actual downstream fret
+    // coordinates, with geometric action and velocity-dependent restitution.
+    // Contact is one-sided and bounded, active only if a wave crosses the
+    // local clearance. There is no added white noise or synthetic buzz.
+    float collision = 0.f;
+    if (c.physics07)
     {
-        const float penetration = -clearance-vAtFret;
-        const float speed=vAtFret-fretDisplacement;
-        collision=limit(0.f,.010f, .21f*penetration - .09f*std::min(speed,0.f));
-        transverse[0].scatter(contactPos,collision,d0);
-        transverse[1].scatter(contactPos,collision*.22f,d1);
-        ++contactCounter;
+        const float baseClearance = .001f + .14f*limit(0.f,1.f,c.fretClearance)
+                                           + .020f*limit(0.f,1.f,c.touch);
+        const int fretsAvailable = availableContactFrets;
+        float remainingBudget = .009f;  // upper bound on added scattering per frame
+        for (int k=0;k<fretsAvailable;++k)
+        {
+            // Fret geometry is precomputed at note-on: no pow()/sin() in DSP tick.
+            const float pos=fretLocation[size_t(k)];
+            const float displacement=.5f*(transverse[0].read(d0*pos)
+                    +transverse[0].read(d0*(1.f-pos)));
+            // String height increases away from the stopping finger. Staggered
+            // fret crown heights approximate realistic, imperfect geometry.
+            const float height=fretHeightMultiplier[size_t(k)];
+            const float clearance=baseClearance*height;
+            const float velocity=displacement-fretContactHistory[size_t(k)];
+            fretContactHistory[size_t(k)] = displacement;
+            if(displacement < -clearance && remainingBudget > 0.f)
+            {
+                const float penetration = -clearance-displacement;
+                // Compliant one-sided contact approximation;
+                // the damping contribution is active only on approach.
+                const float activation=smoothstep(penetration/(.009f+.075f*clearance));
+                float reaction = activation*(.125f*penetration
+                             + .055f*std::max(0.f,-velocity));
+                reaction=limit(0.f,std::min(.003f,remainingBudget),reaction);
+                remainingBudget -= reaction;
+                transverse[0].scatter(pos,reaction,d0);
+                transverse[1].scatter(pos,reaction*.17f,d1);
+                collision+=reaction;
+                ++contactCounter;
+            }
+        }
+        // Persistent contact activity measures mechanical touch, but is not
+        // transformed into independent noise or tremolo.
+        fretContactMemory += .025f*(collision-fretContactMemory);
     }
-    fretDisplacement=vAtFret;
+    else
+    {
+        // v0.6 single-junction contact, bit-identical when v0.7 is disabled.
+        const float vAtFret = .5f*(transverse[0].read(d0*contactPos) +
+                                     transverse[0].read(d0*(1.f-contactPos)));
+        // Material/touch influence action; realistic contact requires adjustable gap.
+        const float clearance = .001f + .14f*limit(0.f,1.f,c.fretClearance)
+                                + .020f*limit(0.f,1.f,c.touch);
+        if (vAtFret < -clearance)
+        {
+            const float penetration = -clearance-vAtFret;
+            const float speed=vAtFret-fretDisplacement;
+            collision=limit(0.f,.010f, .21f*penetration - .09f*std::min(speed,0.f));
+            transverse[0].scatter(contactPos,collision,d0);
+            transverse[1].scatter(contactPos,collision*.22f,d1);
+            ++contactCounter;
+        }
+        fretDisplacement=vAtFret;
+    }
     // A stopped finger dissipates transverse motion; muting is velocity-dependent.
     const float damping = releasing ? .91f - .08f*c.touch : 1.f;
     const float gainPerRoundTrip = loopGain;
@@ -252,11 +328,14 @@ StringEngine::String::Output StringEngine::String::tick(
     float axialVelocity=0.f;
     if(c.physics06)
     {
-        // Bounded semi-implicit reduced-order longitudinal resonance.
+        // Reduced-order longitudinal resonator excited by transverse strain.
+        // Semi-implicit stable damped recurrence (w <= .70 radians/sample).
+        // Saturated stretch estimate is nonnegative, therefore the mean tension
+        // increases with transverse displacement, not via arbitrary pitch LFO.
         const float w=limit(.0001f,.69f,2.f*pi*longitudinalFrequency/sr);
         const float zeta=m==Model::nylon?.10f:m==Model::steel?.055f:.085f;
-        const float slope0=wav0-w0;
-        const float slope1=wav1-w1;
+        const float slope0=wav0 - w0;
+        const float slope1=wav1 - w1;
         const float slopeEnergy=limit(0.f,.15f,2.2f*(slope0*slope0+slope1*slope1)
                                                     + .018f*strainEnergy);
         longitudinalVelocity += w*w*(slopeEnergy-longitudinalDisplacement)
@@ -270,6 +349,7 @@ StringEngine::String::Output StringEngine::String::tick(
     if(c.physics06)
     {
         const float axialContribution=(m==Model::nylon?.075f:.115f)*axialVelocity;
+        // Axial reaction reaches the shared bridge; no direct synthesized buzz.
         out.bridge += axialContribution;
         longitudinalBridge=axialContribution;
     }

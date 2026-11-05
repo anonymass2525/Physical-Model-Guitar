@@ -45,6 +45,7 @@ int main(int argc,char**argv)
             const float val=std::stof(arg.substr(pos+1));
             if(!std::isfinite(val))return 3;
             if(key=="measured") measured=val>.5f;
+            else if(key=="physics07") c.physics07=val>.5f;
             else if(key=="physics06") c.physics06=val>.5f;
             else if(key=="string") forcedString=int(val);
             else if(key.rfind("contact",0)==0 && key.size()==8) {
