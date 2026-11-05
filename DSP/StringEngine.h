@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include "MeasuredBridge.h"
 
 namespace pmg
 {
@@ -33,6 +34,8 @@ struct Controls
     // Experimental v0.7: distributed unilateral fret contacts and energy-preserving reattack.
     // False is a bit-exact v0.6 code path.
     bool physics07 = false;
+    bool physics08 = false;
+    bool measuredBridge08 = false;
     PhysicalCalibration calibration{};
 };
 
@@ -90,7 +93,7 @@ private:
         float cachedCharacter = -1.f, circuitAlpha = .5f;
         float pickSlip = .7f, pickDepth = 0, prevPickDisplacement = 0;
         float lastContact = 0, fretDisplacement = 0;
-        float previousBridge = 0, lastMagnetic = 0, circuitLo = 0, circuitMid = 0;
+        float previousBridge = 0, previousBridgeX = 0, previousBridgeY = 0, lastMagnetic = 0, circuitLo = 0, circuitMid = 0;
         float pickupPrevious = 0, rolloffState = 0;
         float bodyHighpass = 0;
         float dispersion = .5f, planeDetune = .0007f;
@@ -117,7 +120,7 @@ private:
         std::array<float,3> perBandAlpha{};
         void start(int n, int stringNo, int fretNo, float velocity,
                    float rate, Model m, const Controls& controls) noexcept;
-        struct Output { float bridge = 0, electric = 0, direct = 0, fret = 0; };
+        struct Output { float bridge = 0, electric = 0, direct = 0, fret = 0; float bridgeX=0, bridgeY=0; };
         Output tick(float rate, Model m, const Controls& c, float bridgeReaction,
                     float pitchBend, int& contactCounter) noexcept;
     };
@@ -140,6 +143,8 @@ private:
     static constexpr std::array<int, 6> tuning{{40, 45, 50, 55, 59, 64}};
     std::array<String, maxVoices> strings{};
     Body acousticBody{};
+    MeasuredBridge measuredBridge{};
+    float bridgePortFeedback = 0;
     Model model = Model::original;
     Controls controls{};
     float rate = 48000.f, bend = 0.f, gain = 1.f, smoothAlpha = .003f;
