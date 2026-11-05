@@ -1,29 +1,16 @@
-# Physical Model Guitar 0.4 — Acoustic Realism II
+# Physical Model Guitar 0.6 — Physical Realism III
 
-0.3と別のプラグインID (`PmG4`)、別のVST3パッケージ名を使用します。0.3は上書きしません。
+物理ギター研究版。各弦の2直交偏波による横振動に、1個の有効縦振動自由度とピック接線摩擦を追加。縦方向のモデルは完全な波動方程式の離散化ではない。固有振動数は実測同定されていない。
 
-## 0.4の主な改善
-- スチール、ナイロン、エレキ各モデルに固有のピック接触剛性と接触時間
-- 非線形な弦の振幅と張力の相互作用（微小なアタック初期のピッチ変動）
-- 2つの振動方向を結ぶ非常に小さな偏波間の交換
-- 2方向の損失係数の独立化とモデルごとの共鳴胴Q値
-- 同一MIDI、同一ベロシティの単音レンダリングCLI
-- 実録音WAVとの時系列倍音・アタック・音程の比較ツール
-- Inno Setup 6 によるWindows x64 VST3 インストーラー自動作成
+- VST3製品名: Physical Model Guitar 0.6、Plugin Code: PmG6 (0.5と共存)
+- Physics 0.6 / 0.5 Blind A/B は初期ON、OFFで従来の計算経路。
+- Real Recording Calibration は独立トグルで初期OFF。0.5の限定的な採用候補を維持。
+- Windows x64 EXEインストーラーは Inno Setup 6。
+- 同一ギターでの複数テイク、ピッキング位置と速度、弦ゲージ、録音回路を揃えない限り、実物の物性は同定できない。
+- Bridge mobility は force input F(t) と同時計測速度 v(t) から Y(f)=V(f)/F(f) として求める。マイク音圧だけで同定した値は等価音響モデルと呼ぶ。
+- ブラインドA/Bは音量一致の合成音同士。実ギターとの識別テストではなく、聴取前の勝敗もない。
+- GitHub Actionsでは実ギター音源の特徴量を計算して改善・悪化を両方報告する。参照録音はVST3に含めない。
 
-## ビルド・インストール
-GitHub Actionsの `Physical Model Guitar 0.4 - Windows VST3 Installer` を実行し、
-`PhysicalModelGuitar-0.4-Windows-x64-Setup` Artifact内のEXEを実行してください。
-管理者権限が必要です。ファイルは `C:\Program Files\Common Files\VST3\Physical Model Guitar 0.4.vst3` に自動配置され、Windowsのアプリ管理から削除できます。
-
-## 検証状況
-Linux/g++によるDSP単体CTest5件合格。Windows用JUCE VST3とEXEはGitHub Actionsでの実ビルドと試験が必要。
-音色が実ギター録音とどれだけ一致するかは現時点で未検証。測定方法は `REAL_RECORDING_CALIBRATION_JA.md` を参照してください。
-
-## v0.5 experimental per-string calibration
-
-この研究ブランチではPhysicalCalibrationによって各弦の接触剛性・4帯域の減衰・ピックアップ位置、10個のボディ共鳴モードを調整できます。GUIからの編集や自動適用はまだ行いません。実録音での保留評価が済むまでは、0.4の音をそのまま使用してください。
-
-パラメーター校正ツール: `tools/LargeCorpusCalibrator.py`。ブリッジ加振・速度の同期録音を使うボディモードの校正候補ツール: `tools/FitBridgeAdmittance.py`。結果の制約は `ANALYSIS_LIMITATIONS_JA.md` を参照。
-
-Research 0.5は独立のVST3識別子を使用しており、0.4を上書きしません。Windowsの配布はEXEインストーラー形式のみとし、音質改善が検証された時点でパッケージします。
+研究: https://www.dafx.de/paper-archive/details/KZ0Ws85vmVK5-Tceo9RZ1w
+測定: https://pmc.ncbi.nlm.nih.gov/articles/PMC12609871/
+ピック軌道: https://vibsys.put.poznan.pl/article/the-effect-of-micro-changes-in-the-pluck-trajectory-on-the-sound-of-an-acoustic-guitar/
