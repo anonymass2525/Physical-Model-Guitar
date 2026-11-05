@@ -1,0 +1,27 @@
+name: PMG 0.6 - Real Reference Acoustic Feature Comparison
+on:
+  push:
+    branches: [research/v06-physical-realism]
+  workflow_dispatch:
+jobs:
+  reference-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install audio measurement libraries
+        run: python -m pip install --disable-pip-version-check numpy scipy soundfile
+      - name: Build and validate DSP
+        run: |
+          cmake -S . -B build-benchmark -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-benchmark --parallel 2
+          ctest --test-dir build-benchmark --output-on-failure
+      - name: Compare clean real-guitar recordings with both engines
+        run: python tools/Physics06ReferenceBenchmark.py --render build-benchmark/PMGOfflineRender --out benchmark-results
+      - name: Upload metrics only, not reference audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG06-Real-Recording-Comparison-Metrics
+          path: benchmark-results/physics06_reference_benchmark.json
+          retention-days: 90
+          if-no-files-found: error
