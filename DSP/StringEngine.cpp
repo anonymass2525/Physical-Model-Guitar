@@ -86,6 +86,10 @@ void StringEngine::String::start(int n, int stringNo, int fretNo, float velocity
     planeDetune = .00035f + .0014f*c.material;
     strainEnergy = 0.f;
     waveExchange = 0.f;
+    longitudinalDisplacement=longitudinalVelocity=longitudinalBridge=0.f;
+    tangentialDeflection=previousPickTip=0.f;
+    const float lscale=m==Model::nylon?5.8f:m==Model::steel?9.2f:10.5f;
+    longitudinalFrequency=limit(200.f,sr*.11f,frequency*lscale);
     if (m == Model::electric) {
         pickStiffness = 1.18f; strainSensitivity = .0035f;
         transverseLossRatio = 1.30f; polarizationExchange = .00016f;
@@ -149,7 +153,10 @@ StringEngine::String::Output StringEngine::String::tick(
     // Displacement increases string tension. The ensuing sharpened attack relaxes
     // as the vibration decays, without a synthesised pitch envelope or LFO.
     // Its small amount is model dependent and bounded to avoid runaway feedback.
-    const float strain = std::min(.0045f, strainSensitivity * strainEnergy);
+    const float strain = c.physics06
+        ? std::min(.006f, strainSensitivity*(.70f*strainEnergy +
+                4.5f*std::abs(longitudinalDisplacement)))
+        : std::min(.0045f, strainSensitivity * strainEnergy);
     const float d0 = targetDelay/(1.f+strain);
     const float d1 = d0*(1.f+planeDetune);
     const float x = position(c.pluck);
@@ -176,6 +183,26 @@ StringEngine::String::Output StringEngine::String::tick(
     const float angle = limit(0.f,1.f,c.pickAngle);
     const float f0=45.f*pickForce*(.30f+.70f*angle);
     const float f1=45.f*pickForce*(1.f-.52f*angle);
+    if(c.physics06 && active && noteAge < contactLength)
+    {
+        // Velocity dependent Stribeck-like tangential friction.
+        const float tip=pickDepth*smoothstep(float(noteAge)/(contactLength*.44f));
+        const float vtip=tip-previousPickTip;
+        previousPickTip=tip;
+        const float vrel=vtip-pickVelocity;
+        const float vstribeck=.00024f + .00032f*(1.f-c.hardness);
+        const float ratio=limit(-9.f,9.f,vrel/vstribeck);
+        const float stribeck=std::exp(-ratio*ratio);
+        const float friction=.50f + .32f*stribeck;
+        const float deflectionDrive=limit(-.004f,.004f,(tip-pickSample)*.075f);
+        tangentialDeflection += .06f*(deflectionDrive-tangentialDeflection);
+        const float frictionImpulse=limit(-.0015f,.0015f,
+            tangentialDeflection*friction*.12f + vrel*friction*.016f);
+        const float release=1.f-smoothstep((float(noteAge)/contactLength-pickSlip)/
+                                          std::max(.03f,1.f-pickSlip));
+        transverse[0].scatter(x,frictionImpulse*release,d0);
+        transverse[1].scatter(x,-.55f*frictionImpulse*release,d1);
+    }
     transverse[0].scatter(x,f0,d0);
     transverse[1].scatter(x,f1*.78f,d1);
 
@@ -222,7 +249,30 @@ StringEngine::String::Output StringEngine::String::tick(
     const float excursion = std::min(1.f, wav0*wav0 + wav1*wav1);
     const float strainAlpha = std::min(.035f, 120.f/sr);
     strainEnergy += strainAlpha*(excursion-strainEnergy);
+    float axialVelocity=0.f;
+    if(c.physics06)
+    {
+        // Bounded semi-implicit reduced-order longitudinal resonance.
+        const float w=limit(.0001f,.69f,2.f*pi*longitudinalFrequency/sr);
+        const float zeta=m==Model::nylon?.10f:m==Model::steel?.055f:.085f;
+        const float slope0=wav0-w0;
+        const float slope1=wav1-w1;
+        const float slopeEnergy=limit(0.f,.15f,2.2f*(slope0*slope0+slope1*slope1)
+                                                    + .018f*strainEnergy);
+        longitudinalVelocity += w*w*(slopeEnergy-longitudinalDisplacement)
+                                  -2.f*zeta*w*longitudinalVelocity;
+        longitudinalVelocity=limit(-.14f,.14f,longitudinalVelocity);
+        longitudinalDisplacement=limit(-.14f,.14f,
+                                     longitudinalDisplacement+longitudinalVelocity);
+        axialVelocity=longitudinalVelocity;
+    }
     out.bridge = bridge - previousBridge;
+    if(c.physics06)
+    {
+        const float axialContribution=(m==Model::nylon?.075f:.115f)*axialVelocity;
+        out.bridge += axialContribution;
+        longitudinalBridge=axialContribution;
+    }
     previousBridge=bridge;
     out.fret=collision;
     // Radiated direct sound for acoustic styles: mixture of velocity and curvature.
