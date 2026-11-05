@@ -10,6 +10,7 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
         raw[i] = parameters.getRawParameterValue(ids[i]);
     rawRealCalibration = parameters.getRawParameterValue("realCalibration");
     rawPhysics06 = parameters.getRawParameterValue("physics06");
+    rawPhysics07 = parameters.getRawParameterValue("physics07");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -57,6 +58,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "Real Recording Calibration (A/B Experimental)", false));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics06", 1},
           "Physics 0.6 / 0.5 Blind A/B", true));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics07", 1},
+          "Physics 0.7 Distributed Frets / 0.6 A/B", true));
     return l;
 }
 void PhysicalModelGuitarAudioProcessor::loadComparisonPreset(int model)
@@ -95,6 +98,8 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
     }
     if (rawPhysics06 != nullptr)
         c.physics06 = rawPhysics06->load(std::memory_order_relaxed) > .5f;
+    if (rawPhysics07 != nullptr)
+        c.physics07 = rawPhysics07->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
         pmg::applyHeldoutCandidates(requestedModel(), c.calibration);
     return c;
@@ -172,7 +177,7 @@ juce::AudioProcessorEditor *PhysicalModelGuitarAudioProcessor::createEditor()
 void PhysicalModelGuitarAudioProcessor::getStateInformation(juce::MemoryBlock &data)
 {
     auto s = parameters.copyState();
-    s.setProperty("schema", 6, nullptr);
+    s.setProperty("schema", 7, nullptr);
     s.setProperty("editorWidth", editorWidth.load(), nullptr);
     s.setProperty("editorHeight", editorHeight.load(), nullptr);
     auto xml = s.createXml();

@@ -325,6 +325,12 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
                     physical.selected = physicsOn;
                     physical.repaint();
                 }, &p.undo),
+          physics07Attachment(*p.parameters.getParameter("physics07"),
+                [this](float v) {
+                    physics07On = v > .5f;
+                    physical07.selected = physics07On;
+                    physical07.repaint();
+                }, &p.undo),
           undo("UNDO", [&p] { p.undo.undo(); }), redo("REDO", [&p] { p.undo.redo(); }),
           comparison("RESET DEFAULTS", [this] { processor.loadComparisonPreset(chosen); }),
           calibrated("REAL RECORDING CALIBRATION: A/B", [this] {
@@ -332,6 +338,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
           }),
           physical("PHYSICS 0.6 / 0.5: A/B", [this] {
               physicsAttachment.setValueAsCompleteGesture(physicsOn ? 0.f : 1.f);
+          }),
+          physical07("PHYSICS 0.7 / 0.6: A/B", [this] {
+              physics07Attachment.setValueAsCompleteGesture(physics07On ? 0.f : 1.f);
           })
     {
         for (int i = 0; i < 4; ++i)
@@ -363,9 +372,11 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         addAndMakeVisible(comparison);
         addAndMakeVisible(calibrated);
         addAndMakeVisible(physical);
+        addAndMakeVisible(physical07);
         modelAttachment.sendInitialUpdate();
         calibrationAttachment.sendInitialUpdate();
         physicsAttachment.sendInitialUpdate();
+        physics07Attachment.sendInitialUpdate();
     }
     void refresh()
     {
@@ -394,7 +405,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
     {
         g.fillAll(background);
         text(g, "PHYSICAL MODEL GUITAR", {24, 16, 620, 34}, 25, ink);
-        text(g, "SIX-STRING PHYSICAL MODEL   /   0.6 PHYSICS   /   REAL-RECORDING A/B", {25, 52, 620, 17}, 11, muted);
+        text(g, "SIX-STRING PHYSICAL MODEL   /   0.7 DISTRIBUTED CONTACT   /   REAL-RECORDING A/B", {25, 52, 620, 17}, 11, muted);
         for (int group = 0; group < 4; ++group)
         {
             const int x = 20 + group * 245;
@@ -420,12 +431,12 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
              {697, 260, 260, 23}, 11, ink);
         text(g, juce::String(processor.voiceCount.load()) + " / 6 STRINGS  |  MIDI IN", {697, 288, 260, 20},
              11, muted);
-        text(g, calibratedOn ? "CALIBRATION: ON" : "CALIBRATION: OFF", {697, 345, 130, 14}, 10, calibratedOn ? accent(chosen) : muted);
-        text(g, physicsOn ? "PHYSICS 0.6: ON" : "PHYSICS 0.5: OFF", {826, 345, 140, 14}, 10, physicsOn ? accent(chosen) : muted);
+        text(g, calibratedOn ? "CALIBRATION: ON" : "CALIBRATION: OFF", {697, 143, 135, 14}, 10, calibratedOn ? accent(chosen) : muted);
+        text(g, physics07On ? "PHYSICS 0.7: ON" : "PHYSICS 0.6: OFF", {826, 143, 140, 14}, 10, physics07On ? accent(chosen) : muted);
         text(g, "Drag vertically / Shift: fine / Wheel or arrows / Double-click: reset", {24, 716, 700, 18},
              11, muted);
         text(g,
-             "Physics 0.6 is an experimental reduced-order model. MIDI E2-E6 / 6 playable strings.",
+             "Physics 0.7: distributed fret contacts + residual vibration. Physics 0.6 is also available.",
              {24, 736, 950, 15}, 10, muted);
     }
     void resized() override
@@ -443,6 +454,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         comparison.setBounds(644, 24, 144, 32);
         calibrated.setBounds(697, 302, 260, 23);
         physical.setBounds(697, 325, 260, 23);
+        physical07.setBounds(697, 348, 260, 20);
     }
     bool fits() const
     {
@@ -456,10 +468,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
   private:
     PhysicalModelGuitarAudioProcessor &processor;
     int chosen = 0;
-    bool calibratedOn = false, physicsOn = true;
-    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment;
+    bool calibratedOn = false, physicsOn = true, physics07On = true;
+    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment;
     std::array<std::unique_ptr<Action>, 4> models;
-    Action undo, redo, comparison, calibrated, physical;
+    Action undo, redo, comparison, calibrated, physical, physical07;
 };
 PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor(
     PhysicalModelGuitarAudioProcessor &p)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(PhysicalModelGuitar VERSION 0.6.0 LANGUAGES C CXX)
+project(PhysicalModelGuitar VERSION 0.7.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
@@ -22,6 +22,9 @@ if(BUILD_TESTING)
     add_executable(PMGPhysics06Tests Tests/Physics06Tests.cpp)
     target_link_libraries(PMGPhysics06Tests PRIVATE PMGDSP)
     add_test(NAME PMG06_physics COMMAND PMGPhysics06Tests)
+    add_executable(PMGPhysics07Tests Tests/Physics07Tests.cpp)
+    target_link_libraries(PMGPhysics07Tests PRIVATE PMGDSP)
+    add_test(NAME PMG07_distributed_contacts COMMAND PMGPhysics07Tests)
     foreach(case basic physics interaction stability realtime)
         add_test(NAME PMG04_${case} COMMAND PMGDSPTests ${case})
     endforeach()
@@ -36,11 +39,11 @@ if(PMG_BUILD_PLUGIN)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
         COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.physics06"
+        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.physics07"
         PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE PmG6
-        PRODUCT_NAME "Physical Model Guitar 0.6"
-        DESCRIPTION "Physical guitar: longitudinal coupling, stick-slip contact and measurement A/B"
+        PLUGIN_CODE PmG7
+        PRODUCT_NAME "Physical Model Guitar 0.7"
+        DESCRIPTION "Physical guitar: distributed fret contacts, longitudinal coupling and controlled reattack"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
         FORMATS VST3 Standalone VST3_CATEGORIES Instrument)

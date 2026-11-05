@@ -1,0 +1,28 @@
+name: PMG v0.7 Real Guitar Recording Benchmark
+on:
+  push:
+    branches:
+      - research/v07-high-resolution-frets
+  workflow_dispatch:
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python sound analysis packages
+        run: python -m pip install --disable-pip-version-check --break-system-packages numpy scipy soundfile
+      - name: Build physical DSP and run tests
+        run: |
+          cmake -S . -B build-bench -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-bench --parallel 2
+          ctest --test-dir build-bench --output-on-failure
+      - name: Evaluate v0.7 against the same real notes as v0.6
+        run: python tools/Physics07ReferenceBenchmark.py --render build-bench/PMGOfflineRender --out reference-report
+      - name: Upload measured errors only, without distributing recordings
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG-v0.7-Real-Guitar-Reference-Results
+          path: reference-report/physics07_vs_06.json
+          if-no-files-found: error
+          retention-days: 90
