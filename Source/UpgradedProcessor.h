@@ -68,7 +68,7 @@ class PhysicalModelGuitarAudioProcessor final : public juce::AudioProcessor
 
   private:
     std::array<std::atomic<float> *, 17> raw{};
-    std::atomic<float> *rawRealCalibration = nullptr, *rawPhysics06 = nullptr, *rawPhysics07 = nullptr, *rawPhysics08 = nullptr, *rawMeasuredBridge08 = nullptr, *rawPhysics09 = nullptr, *rawPhysics10 = nullptr, *rawPhysics11 = nullptr, *rawPhysics12 = nullptr, *rawMagnetic13 = nullptr, *rawRadiation13 = nullptr, *rawMagnetic14 = nullptr, *rawRadiation14 = nullptr, *rawMagneticAttack14 = nullptr, *rawNylonTreble14 = nullptr, *rawMagnetic15 = nullptr, *rawRadiation15 = nullptr, *rawDirectPhase15 = nullptr, *rawRadiation16 = nullptr, *rawLateBody16 = nullptr;
+    std::atomic<float> *rawRealCalibration = nullptr, *rawPhysics06 = nullptr, *rawPhysics07 = nullptr, *rawPhysics08 = nullptr, *rawMeasuredBridge08 = nullptr, *rawPhysics09 = nullptr, *rawPhysics10 = nullptr, *rawPhysics11 = nullptr, *rawPhysics12 = nullptr, *rawMagnetic13 = nullptr, *rawRadiation13 = nullptr, *rawMagnetic14 = nullptr, *rawRadiation14 = nullptr, *rawMagneticAttack14 = nullptr, *rawNylonTreble14 = nullptr, *rawMagnetic15 = nullptr, *rawRadiation15 = nullptr, *rawDirectPhase15 = nullptr, *rawRadiation16 = nullptr, *rawLateBody16 = nullptr, *rawRadiation17 = nullptr, *rawDirectBodyPhase17 = nullptr, *rawDirectBodyMix17 = nullptr;
     pmg::ModelRack rack;
     pmg::Controls readControls() const noexcept;
     pmg::Model requestedModel() const noexcept;

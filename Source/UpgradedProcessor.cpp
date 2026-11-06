@@ -26,6 +26,9 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawMagnetic15 = parameters.getRawParameterValue("magnetic15");
     rawRadiation15 = parameters.getRawParameterValue("radiation15");
     rawRadiation16 = parameters.getRawParameterValue("radiation16");
+    rawRadiation17 = parameters.getRawParameterValue("radiation17");
+    rawDirectBodyPhase17 = parameters.getRawParameterValue("directBodyPhase17");
+    rawDirectBodyMix17 = parameters.getRawParameterValue("directBodyMix17");
     rawLateBody16 = parameters.getRawParameterValue("lateBody16");
     rawDirectPhase15 = parameters.getRawParameterValue("directPhase15");
 }
@@ -109,6 +112,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "1.6 Long Nylon Body Modes / 1.5 A/B",false));
     l.add(std::make_unique<P>(juce::ParameterID{"lateBody16",1},
           "1.6 Long Body Tail Mix",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"radiation17",1},
+          "1.7 Coherent Direct/Body Radiation A/B",false));
+    l.add(std::make_unique<P>(juce::ParameterID{"directBodyPhase17",1},
+          "1.7 Signed Direct/Body Air Delay",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
+    l.add(std::make_unique<P>(juce::ParameterID{"directBodyMix17",1},
+          "1.7 Direct String Radiation Mix",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -170,6 +179,9 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
     if (rawMagnetic15 != nullptr) c.magnetic15 = rawMagnetic15->load(std::memory_order_relaxed) > .5f;
     if (rawRadiation15 != nullptr) c.radiation15 = rawRadiation15->load(std::memory_order_relaxed) > .5f;
     if (rawRadiation16 != nullptr) c.radiation16 = rawRadiation16->load(std::memory_order_relaxed) > .5f;
+    if (rawRadiation17 != nullptr) c.radiation17 = rawRadiation17->load(std::memory_order_relaxed) > .5f;
+    if (rawDirectBodyPhase17 != nullptr) c.directBodyPhase17 = rawDirectBodyPhase17->load(std::memory_order_relaxed);
+    if (rawDirectBodyMix17 != nullptr) c.directBodyMix17 = rawDirectBodyMix17->load(std::memory_order_relaxed);
     if (rawLateBody16 != nullptr) c.lateBody16 = rawLateBody16->load(std::memory_order_relaxed);
     if (rawDirectPhase15 != nullptr) c.directPhase15 = rawDirectPhase15->load(std::memory_order_relaxed);
     if (rawMeasuredBridge08 != nullptr)

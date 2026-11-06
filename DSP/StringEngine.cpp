@@ -483,6 +483,7 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     measuredMagnetic15.prepare(rate);
     measuredNylon15.prepare(rate);
     longRadiation16.prepare(rate);
+    coherentRadiation17.prepare(rate);
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
@@ -660,9 +661,18 @@ StereoFrame StringEngine::nextFrame() noexcept
                 // observer. Runs while bypassed to avoid stale oscillator
                 // states on switching; does NOT feed back into the SI waveguide.
                 const auto late16=longRadiation16.tick(micL,micR);
+                const auto coherent17=coherentRadiation17.tick(powerStrings10,micL,micR,
+                    late16,bodyAmount,controls.directBodyPhase17,
+                    controls.directBodyMix17,controls.lateBody16);
                 const float targetTail16=controls.radiation16?limit(0.f,1.f,controls.lateBody16):0.f;
                 smoothedLateRadiation16 += smoothAlpha*(targetTail16-smoothedLateRadiation16);
-                if(controls.radiation16 || (controls.radiation15 && smoothedLateRadiation16>1.e-5f)){
+                if(controls.radiation17){
+                    // The late observer, FIR early body and string-only
+                    // direct sound are separate, phase-coherent readouts.
+                    left=scale*.68f*float(coherent17.left);
+                    right=scale*.68f*float(coherent17.right);
+                }
+                else if(controls.radiation16 || (controls.radiation15 && smoothedLateRadiation16>1.e-5f)){
                     // The 96-tap 1.5 near-field early response carries
                     // calibrated phase; the 1.6 delayed modal bank adds a
                     // proposed 2-500 ms soundboard tail. The string's direct

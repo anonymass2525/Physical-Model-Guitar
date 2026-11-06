@@ -8,6 +8,7 @@
 #include "Observation14.h"
 #include "Observation15.h"
 #include "LongRadiation16.h"
+#include "CoherentRadiation17.h"
 
 namespace pmg
 {
@@ -67,6 +68,9 @@ struct Controls
     float directPhase15=.5f; // direct string-to-body relative propagation delay, unmeasured
     bool radiation16=false; // proposed long 2x2 body modal radiation, opt-in
     float lateBody16=.5f; // mix of late resonant field; not calibrated as absolute Pa
+    bool radiation17=false; // v1.7 two-source coherent readout, opt-in
+    float directBodyPhase17=.5f; // signed +/- .9ms relative arrival hypothesis
+    float directBodyMix17=.5f; // direct-string radiation fraction, uncalibrated
     PhysicalCalibration calibration{};
 };
 
@@ -196,6 +200,7 @@ private:
     MeasuredMagnetic15 measuredMagnetic15{};
     MeasuredNylon15 measuredNylon15{};
     LongRadiation16 longRadiation16;
+    CoherentRadiation17 coherentRadiation17;
     std::array<float, maxVoices> bridgeReflections09{};
     std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;

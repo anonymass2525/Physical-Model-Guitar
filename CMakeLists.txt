@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
-project(PhysicalModelGuitar VERSION 1.6.0 LANGUAGES C CXX)
+project(PhysicalModelGuitar VERSION 1.7.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
     add_compile_options(/utf-8)
 endif()
 include(CTest)
-add_library(PMGDSP STATIC DSP/StringEngine.cpp DSP/MeasuredBridge.cpp DSP/TwoPortBridge.cpp DSP/PowerWaveStrings.cpp DSP/Observation13.cpp DSP/Observation14.cpp DSP/Observation15.cpp DSP/LongRadiation16.cpp)
+add_library(PMGDSP STATIC DSP/StringEngine.cpp DSP/MeasuredBridge.cpp DSP/TwoPortBridge.cpp DSP/PowerWaveStrings.cpp DSP/Observation13.cpp DSP/Observation14.cpp DSP/Observation15.cpp DSP/LongRadiation16.cpp DSP/CoherentRadiation17.cpp)
 target_include_directories(PMGDSP PUBLIC DSP)
 if(MSVC)
     target_compile_options(PMGDSP PRIVATE /W4)
@@ -30,6 +30,9 @@ if(BUILD_TESTING)
     add_executable(PMGObserver13Tests Tests/Observer13Tests.cpp)
     target_link_libraries(PMGObserver13Tests PRIVATE PMGDSP)
     add_test(NAME PMG13_independent_observation COMMAND PMGObserver13Tests)
+    add_executable(PMGObserver17Tests Tests/Observer17Tests.cpp)
+    target_link_libraries(PMGObserver17Tests PRIVATE PMGDSP)
+    add_test(NAME PMG17_coherent_two_source_radiation COMMAND PMGObserver17Tests)
     add_executable(PMGObserver16Tests Tests/Observer16Tests.cpp)
     target_link_libraries(PMGObserver16Tests PRIVATE PMGDSP)
     add_test(NAME PMG16_long_body_modes_and_interference COMMAND PMGObserver16Tests)
@@ -66,10 +69,10 @@ if(PMG_BUILD_PLUGIN)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
         COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.longradiation16"
+        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.coherentradiation17"
         PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE Pm16
-        PRODUCT_NAME "Physical Model Guitar 1.6 Research"
+        PLUGIN_CODE Pm17
+        PRODUCT_NAME "Physical Model Guitar 1.7 Research"
         DESCRIPTION "Causal two-port soundboard early FIR and long modal decay with relative phase A/B"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
