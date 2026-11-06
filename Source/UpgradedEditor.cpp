@@ -500,7 +500,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         calibrated.setBounds(697, 302, 260, 23);
         physical.setBounds(697, 325, 260, 23);
         physical07.setBounds(697, 348, 260, 20);
-        physical10.setBounds(697, 650, 260, 24);
+        physical10.setBounds(697, 373, 260, 24);
         physical09.setBounds(697, 676, 260, 25);
         physical08.setBounds(697, 701, 260, 25);
         measured08.setBounds(697, 728, 260, 25);
