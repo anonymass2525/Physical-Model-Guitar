@@ -19,7 +19,7 @@ private:
     struct State {double re=0.,im=0.;};
     std::array<std::array<State,4>,kLongModeCount16> states{};
     std::array<double,kLongModeCount16> rotRe{},rotIm{};
-    std::array<std::array<double,256>,2> delayed{};
+    std::array<std::array<double,1024>,2> delayed{};
     int cursor=0,delaySamples=96;
 };
 }

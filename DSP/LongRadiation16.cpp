@@ -12,7 +12,7 @@ inline double finiteClamp(double a,double lo,double hi) noexcept {
 void LongRadiation16::prepare(double sampleRate) noexcept {
     const double sr=finiteClamp(sampleRate,8000.,192000.);
     const double fs=(sr>0.)?sr:48000.;
-    delaySamples=std::clamp(int(std::lround(double(earlySamples48k)*fs/48000.)),1,255);
+    delaySamples=std::clamp(int(std::lround(double(earlySamples48k)*fs/48000.)),1,1023);
     for(int j=0;j<kLongModeCount16;++j){
         const auto& m=kRadiationModes16[size_t(j)];
         const double r=std::exp(-1.0/(fs*finiteClamp(m.tau,.025,1.0)));
@@ -32,9 +32,9 @@ LongRadiation16::Stereo LongRadiation16::tick(double bass,double treble) noexcep
     const double a=finiteClamp(bass,-12.,12.),b=finiteClamp(treble,-12.,12.);
     delayed[0][size_t(cursor)]=a;
     delayed[1][size_t(cursor)]=b;
-    const int read=(cursor+256-delaySamples)%256;
+    const int read=(cursor+1024-delaySamples)%1024;
     const double v[2]{delayed[0][size_t(read)],delayed[1][size_t(read)]};
-    cursor=(cursor+1)%256;
+    cursor=(cursor+1)%1024;
     double output[2]{};
     for(int j=0;j<kLongModeCount16;++j){
         const double cr=rotRe[size_t(j)],ci=rotIm[size_t(j)];

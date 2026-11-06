@@ -51,7 +51,7 @@ static void models(double sr,int model){
     if(model==3)require(diff>1e-6,"long observer inactive");
 }
 int main(){try{
-    for(double sr:{44100.,48000.,96000.}){
+    for(double sr:{44100.,48000.,96000.,192000.}){
         impulse(sr);
         for(int model:{1,2,3})models(sr,model);
     }

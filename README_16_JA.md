@@ -48,3 +48,13 @@ original recorded source. The fallback header is marked unmeasured.
 
 No uncompensated claim of superior audio: both frequency/phase fit and
 listening must improve before changing the default.
+
+## 2026-11-07 実測モデル推定結果
+
+Mores Guitar #1の複素2×2近接応答（早期FIR96タップ＋後期16モード）で、
+同一録音のホールドアウト周波数ビン誤差は0.7275→0.5811。
+別のギターの音符録音12音での特徴量誤差は7.803→7.953で約1.9%悪化。
+モードの推定時定数は約8～23msで、長いテールを任意に水増ししていない。
+このため1.6新機構はOFFがデフォルト。音色を上書きしない。
+192kHzでも約2msの因果遅延を保持できる1024サンプルリングへ拡張。
+スイッチ・深さ変更は短い時間でスムーズに補間する。

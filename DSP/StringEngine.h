@@ -208,5 +208,6 @@ private:
     // Purely observational microphone/coil electronics. No feedback into waves.
     float unifiedSensorLowL=0.f, unifiedSensorLowR=0.f, unifiedElectronics=0.f;
     float unifiedSensorHi=0.f;
+    float smoothedLateRadiation16=0.f;
 };
 } // namespace pmg
