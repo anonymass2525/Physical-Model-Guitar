@@ -62,13 +62,13 @@ class PhysicalModelGuitarAudioProcessor final : public juce::AudioProcessor
         "bodyResonance",   "bodySize",       "outputLevel",   "model",          "material",
         "pickupCharacter", "bridgeCoupling", "touch", "pickAngle", "fretClearance",
         "pickupAperture", "bridgeMobility"};
-    std::atomic<int> appliedModel{0}, voiceCount{0}, editorWidth{1040}, editorHeight{780};
+    std::atomic<int> appliedModel{0}, voiceCount{0}, editorWidth{1040}, editorHeight{840};
     std::atomic<bool> modelTransition{false};
     std::atomic<float> peak{0};
 
   private:
     std::array<std::atomic<float> *, 17> raw{};
-    std::atomic<float> *rawRealCalibration = nullptr, *rawPhysics06 = nullptr, *rawPhysics07 = nullptr, *rawPhysics08 = nullptr, *rawMeasuredBridge08 = nullptr, *rawPhysics09 = nullptr, *rawPhysics10 = nullptr, *rawPhysics11 = nullptr, *rawPhysics12 = nullptr, *rawMagnetic13 = nullptr, *rawRadiation13 = nullptr;
+    std::atomic<float> *rawRealCalibration = nullptr, *rawPhysics06 = nullptr, *rawPhysics07 = nullptr, *rawPhysics08 = nullptr, *rawMeasuredBridge08 = nullptr, *rawPhysics09 = nullptr, *rawPhysics10 = nullptr, *rawPhysics11 = nullptr, *rawPhysics12 = nullptr, *rawMagnetic13 = nullptr, *rawRadiation13 = nullptr, *rawMagnetic14 = nullptr, *rawRadiation14 = nullptr, *rawMagneticAttack14 = nullptr, *rawNylonTreble14 = nullptr;
     pmg::ModelRack rack;
     pmg::Controls readControls() const noexcept;
     pmg::Model requestedModel() const noexcept;

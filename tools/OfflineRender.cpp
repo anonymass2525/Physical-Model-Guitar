@@ -57,6 +57,10 @@ int main(int argc,char**argv)
             else if(key=="pickup12") c.pickup12=val>.5f;
             else if(key=="magnetic13") c.magnetic13=val>.5f;
             else if(key=="radiation13") c.radiation13=val>.5f;
+            else if(key=="magnetic14") c.magnetic14=val>.5f;
+            else if(key=="radiation14") c.radiation14=val>.5f;
+            else if(key=="magnetic-attack14") c.magneticAttack14=std::clamp(val,0.f,1.f);
+            else if(key=="nylon-treble14") c.nylonTreble14=std::clamp(val,0.f,1.f);
             else if(key=="bridge-measured08") c.measuredBridge08=val>.5f;
             else if(key=="physics06") c.physics06=val>.5f;
             else if(key=="string") forcedString=int(val);

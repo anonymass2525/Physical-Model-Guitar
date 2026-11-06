@@ -1,0 +1,33 @@
+name: PMG 1.4 Research - Independent Transient and High-Register Validation
+on:
+  push:
+    branches:
+      - research/observer-refinement-v14
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference-observers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy soundfile
+      - name: Build DSP and run all regressions
+        run: |
+          cmake -S . -B build-ref -DCMAKE_BUILD_TYPE=Release -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-ref --parallel 2
+          ctest --test-dir build-ref --output-on-failure
+      - name: Compare 1.2 1.3 1.4 against external DI and nylon high notes
+        run: python tools/Physics14ReferenceBenchmark.py --render build-ref/PMGOfflineRender --out feature-results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PMG14-Electric-Attack-Nylon-Treble-Feature-Scores
+          path: |
+            feature-results/physics14_reference_scores.json
+            feature-results/PHYSICS14_REFERENCE_SUMMARY.md
+          retention-days: 90
+          if-no-files-found: error
