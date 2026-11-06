@@ -476,6 +476,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     measuredBridge.prepare(rate,bridgeModes);
     twoPortBridge.prepare(rate,bridgeModes);
     powerStrings10.prepare(rate,int(model));
+    magneticPickup13.prepare(rate);
+    nylonRadiation13.prepare(rate);
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
@@ -608,6 +610,18 @@ StereoFrame StringEngine::nextFrame() noexcept
             const float e=unifiedElectronics*.78f+unifiedSensorHi*.22f;
             left=17.f*e + .14f*bodyAmount*unifiedSensorLowL;
             right=17.f*e + .14f*bodyAmount*unifiedSensorLowR;
+            // 1.3 separate observation: spatial aperture, regularized
+            // nonlinear flux gradient, and stable two-pole coil/cable load.
+            // This only observes unified waveguide state; no added string force.
+            const float sensed13=float(magneticPickup13.tick(powerStrings10,
+                controls.pickup, controls.pickupAperture, controls.character));
+            if(controls.magnetic13){
+                // Absolute conversion from velocity to volts is unmeasured.
+                // Fixed gain matches the rough reference-model RMS range,
+                // not the harmonic envelope or a particular commercial guitar.
+                left=10.9f*sensed13 + .14f*bodyAmount*unifiedSensorLowL;
+                right=10.9f*sensed13 + .14f*bodyAmount*unifiedSensorLowR;
+            }
         }else{
             // Acoustic: soundboard velocity is primary; local string-motion
             // leakage approximates near-field string radiation without energy
@@ -616,6 +630,16 @@ StereoFrame StringEngine::nextFrame() noexcept
             const float stringLeak=.025f*stringReadout;
             left=scale*(unifiedSensorLowL*(.22f+.78f*bodyAmount)+stringLeak);
             right=scale*(unifiedSensorLowR*(.22f+.78f*bodyAmount)+stringLeak*.92f);
+            if(model==Model::nylon){
+                // Modal pressure radiation vs direct string leakage are
+                // independently measured/read, never injected into the bridge.
+                const auto sound13=nylonRadiation13.tick(powerStrings10,
+                    micL,micR,bodyAmount);
+                if(controls.radiation13){
+                    left=scale*.59f*float(sound13.left);
+                    right=scale*.59f*float(sound13.right);
+                }
+            }
         }
         const auto safe=[](float v) noexcept {
             if(!std::isfinite(v))return 0.f;

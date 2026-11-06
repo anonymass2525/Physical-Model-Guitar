@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
-project(PhysicalModelGuitar VERSION 1.2.0 LANGUAGES C CXX)
+project(PhysicalModelGuitar VERSION 1.3.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
     add_compile_options(/utf-8)
 endif()
 include(CTest)
-add_library(PMGDSP STATIC DSP/StringEngine.cpp DSP/MeasuredBridge.cpp DSP/TwoPortBridge.cpp DSP/PowerWaveStrings.cpp)
+add_library(PMGDSP STATIC DSP/StringEngine.cpp DSP/MeasuredBridge.cpp DSP/TwoPortBridge.cpp DSP/PowerWaveStrings.cpp DSP/Observation13.cpp)
 target_include_directories(PMGDSP PUBLIC DSP)
 if(MSVC)
     target_compile_options(PMGDSP PRIVATE /W4)
@@ -27,6 +27,9 @@ if(BUILD_TESTING)
     add_executable(PMGTwoPort09Tests Tests/TwoPortBridgeTests.cpp)
     target_link_libraries(PMGTwoPort09Tests PRIVATE PMGDSP)
     add_test(NAME PMG09_wave_energy_and_2port_scattering COMMAND PMGTwoPort09Tests)
+    add_executable(PMGObserver13Tests Tests/Observer13Tests.cpp)
+    target_link_libraries(PMGObserver13Tests PRIVATE PMGDSP)
+    add_test(NAME PMG13_independent_observation COMMAND PMGObserver13Tests)
     add_executable(PMGUnified12Tests Tests/Unified12Tests.cpp)
     target_link_libraries(PMGUnified12Tests PRIVATE PMGDSP)
     add_test(NAME PMG12_unified_energy_and_ablation COMMAND PMGUnified12Tests)
@@ -54,11 +57,11 @@ if(PMG_BUILD_PLUGIN)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
         COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.unified12"
+        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.observers13"
         PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE Pm12
-        PRODUCT_NAME "Physical Model Guitar 1.2 Research"
-        DESCRIPTION "Single-generation wave/bridge engine with energy-audited interactions and independent ablation"
+        PLUGIN_CODE Pm13
+        PRODUCT_NAME "Physical Model Guitar 1.3 Research"
+        DESCRIPTION "Independent magnetic flux and nylon radiation observers of unified velocity waveguide"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
         FORMATS VST3 Standalone VST3_CATEGORIES Instrument)

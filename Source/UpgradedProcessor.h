@@ -68,7 +68,7 @@ class PhysicalModelGuitarAudioProcessor final : public juce::AudioProcessor
 
   private:
     std::array<std::atomic<float> *, 17> raw{};
-    std::atomic<float> *rawRealCalibration = nullptr, *rawPhysics06 = nullptr, *rawPhysics07 = nullptr, *rawPhysics08 = nullptr, *rawMeasuredBridge08 = nullptr, *rawPhysics09 = nullptr, *rawPhysics10 = nullptr, *rawPhysics11 = nullptr, *rawPhysics12 = nullptr;
+    std::atomic<float> *rawRealCalibration = nullptr, *rawPhysics06 = nullptr, *rawPhysics07 = nullptr, *rawPhysics08 = nullptr, *rawMeasuredBridge08 = nullptr, *rawPhysics09 = nullptr, *rawPhysics10 = nullptr, *rawPhysics11 = nullptr, *rawPhysics12 = nullptr, *rawMagnetic13 = nullptr, *rawRadiation13 = nullptr;
     pmg::ModelRack rack;
     pmg::Controls readControls() const noexcept;
     pmg::Model requestedModel() const noexcept;
