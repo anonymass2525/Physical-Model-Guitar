@@ -75,7 +75,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics11", 1},
           "Physics 1.1 Integrated Pick/Fret/Longitudinal/Pickup A/B", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics12", 1},
-          "Physics 1.2 Unified Wave / 1.1 Hybrid A/B", true));
+          "Physics 1.2 Unified Wave / 1.1 Hybrid A/B", false));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
