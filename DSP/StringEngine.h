@@ -46,7 +46,9 @@ struct Controls
     // displacement waveguides are not full SI-calibrated power-wave states.
     bool physics09 = false;
     // v1.0 experimental *physically dimensioned* velocity-wave/bridge subsystem.
-    bool physics10 = false;
+    bool physics10 = true;
+    // 1.1: local pick/fret scattering, reduced axial modes, position-aware pickup.
+    bool physics11 = true;
     PhysicalCalibration calibration{};
 };
 
@@ -77,6 +79,9 @@ public:
     float bodyMotion() const noexcept { return lastBodyMotion; }
     int assignedString(int midiNote) const noexcept;
     float stringEnergy(int physicalString) const noexcept;
+    int powerWaveFretCollisions11() const noexcept {return powerStrings10.fretCollisions11();}
+    double powerWaveContactLoss11() const noexcept {return powerStrings10.localContactDissipation11();}
+    double powerWaveAxialLoss11() const noexcept {return powerStrings10.longitudinalDissipation11();}
     double powerWaveResidual10() const noexcept {return powerStrings10.energyResidual();}
     double powerWaveStringJoules10() const noexcept {return powerStrings10.storedStringEnergy();}
 

@@ -17,11 +17,14 @@ double clip(double v,double lo,double hi) noexcept {return std::clamp(std::isfin
 }
 void PowerWaveStrings::Wave::clear() noexcept {
     ring.fill(0.);cursor=0;apState=queueEnergy=0.;releasing=false;
+    pickEnergyWave=axialQ=axialP=0.;fretDisplacement.fill(0.);
+    fretCooldown.fill(0);pickSamples=0;
 }
 void PowerWaveStrings::prepare(double sr,int model) noexcept {
     rate=clip(sr,8000.,192000.);dt=1./rate;
     guitarModel=std::clamp(model,0,3);
     externalEnergy=lostToPropagation=mutedEnergy=maxResidual=0.;
+    contactDissipation11=axialDissipation11=0.; collisions11=0;
     auto modes=MeasuredBridge::fallbackGuitar(guitarModel);
     // Explicit physical mass ASSUMPTIONS, not yet measured modal masses.
     // Compared with v0.9's normalized 20-200 unit inertias these approximate
@@ -43,6 +46,25 @@ void PowerWaveStrings::prepare(double sr,int model) noexcept {
     }
     setDecay(decaySec);
 }
+void PowerWaveStrings::setPhysics11(bool enabled) noexcept {
+    if(physics11==enabled)return;
+    if(!enabled) for(auto& both:waves)for(auto& w:both) {
+        // Switching off retires all outstanding local contact state as absorbed energy.
+        contactDissipation11+=w.pickEnergyWave*w.pickEnergyWave;
+        axialDissipation11+=w.axialQ*w.axialQ+w.axialP*w.axialP;
+        w.pickEnergyWave=w.axialQ=w.axialP=0.;w.pickSamples=0;
+        w.fretDisplacement.fill(0.);w.fretCooldown.fill(0);
+    }
+    physics11=enabled;
+}
+void PowerWaveStrings::setContactParameters(double hard,double clearance,double pickup) noexcept {
+    pickHardness=clip(hard,0.,1.);fretClearance=clip(clearance,0.,1.);
+    pickupLocation=clip(pickup,.03,.49);
+}
+double PowerWaveStrings::waveStoredEnergy(const Wave& w,double h) noexcept {
+    return w.queueEnergy+h*w.z*w.apState*w.apState
+           +w.pickEnergyWave*w.pickEnergyWave+w.axialQ*w.axialQ+w.axialP*w.axialP;
+}
 void PowerWaveStrings::setDecay(double seconds) noexcept {
     decaySec=clip(seconds,.5,20.);
     for(auto& both:waves)for(auto& w:both)
@@ -60,8 +82,8 @@ bool PowerWaveStrings::strike(int s,int midiNote,double velocity,double pluck) n
     // is counted explicitly as energy lost to stopping the previous string.
     for(int p=0;p<planes;++p) {
         auto& w=waves[size_t(s)][size_t(p)];
-        mutedEnergy+=w.queueEnergy+dt*w.z*w.apState*w.apState;
-        w.clear();w.nominalHz=f;
+        mutedEnergy+=waveStoredEnergy(w,dt);
+        w.clear();w.nominalHz=f;w.pickPosition=pick;
         w.stringLength=.65*fOpen[size_t(s)]/f;
         w.integerDelay=n;
         w.allpassA=(1.-frac)/(1.+frac);
@@ -92,6 +114,14 @@ bool PowerWaveStrings::strike(int s,int midiNote,double velocity,double pluck) n
             w.queueEnergy+=dt*w.z*x*x;
         }
         externalEnergy+=w.queueEnergy;
+        if(physics11) {
+            // Energy supplied at pick contact by the performer: a compliant
+            // pick spring, not a free additive output transient.
+            const double pickJ=w.queueEnergy*(.045+.055*(1.-pickHardness));
+            w.pickEnergyWave=std::sqrt(std::max(0.,pickJ));
+            w.pickSamples=std::max(1,int(rate*(.0018+.0028*(1.-pickHardness))));
+            externalEnergy+=pickJ;
+        }
     }
     return true;
 }
@@ -110,6 +140,21 @@ PowerWaveStrings::Frame PowerWaveStrings::tick() noexcept {
         for(int p=0;p<planes;++p)
             incident[size_t(p)][size_t(s)]=waves[size_t(s)][size_t(p)].read();
     }
+    // Observe travelling waves without loading them. This is an *idealized*
+    // velocity-sensitive magnetic/acoustic readout; pickup back-action is zero.
+    if(physics11) for(int s=0;s<strings;++s){
+        const auto& both=waves[size_t(s)];
+        for(int p=0;p<planes;++p){
+            const auto& w=both[size_t(p)];
+            const int n=w.integerDelay;
+            const int tap=std::clamp(int(std::lround(n*pickupLocation)),2,n/2);
+            const double forward=w.ring[size_t((w.cursor+tap)%n)];
+            const double backward=w.ring[size_t((w.cursor+n-tap)%n)];
+            const double aperture=(w.ring[size_t((w.cursor+tap+1)%n)]
+                +w.ring[size_t((w.cursor+tap+n-1)%n)])*.5;
+            result.pickupVelocity+=(p==0?.84:.16)*(.65*forward-.30*backward+.35*aperture);
+        }
+    }
     std::array<TwoPortBridge::Frame,planes> frames{};
     for(int p=0;p<planes;++p)frames[size_t(p)]=bridges[size_t(p)].tick(incident[size_t(p)],z);
     for(int s=0;s<strings;++s){
@@ -120,8 +165,14 @@ PowerWaveStrings::Frame PowerWaveStrings::tick() noexcept {
             const double gain=w.gain*(w.releasing?.99985:1.);
             const double intoNut=-gain*reflected;
             const double previousAp=w.apState;
-            const double afterAp=w.allpassA*intoNut+w.allpassB*previousAp;
-            w.apState=w.allpassB*intoNut-w.allpassA*previousAp;
+            // Nonlinear tension shortens the effective phase delay at large
+            // excursions. Recompute the orthogonal allpass coefficients so
+            // the phase change does not create or destroy wave energy.
+            const double a=physics11 ? clip(w.allpassA+.028*std::tanh(14.*std::abs(reflected)),-.97,.97)
+                                     : w.allpassA;
+            const double b=physics11 ? std::sqrt(std::max(0.,1.-a*a)) : w.allpassB;
+            const double afterAp=a*intoNut+b*previousAp;
+            w.apState=b*intoNut-a*previousAp;
             w.ring[size_t(w.cursor)]=afterAp;
             w.cursor=(w.cursor+1)%w.integerDelay;
             w.queueEnergy+=dt*w.z*(afterAp*afterAp-original*original);
@@ -135,13 +186,14 @@ PowerWaveStrings::Frame PowerWaveStrings::tick() noexcept {
         result.right+=frames[size_t(p)].radiatedR*(p==0?.42:1.);
         result.bridgeVelocity+=.5*(frames[size_t(p)].bridgeVelocity[0]+frames[size_t(p)].bridgeVelocity[1]);
     }
+    if(physics11)applyLocalContacts11();
     const double residual=energyResidual();
     if(std::isfinite(residual))maxResidual=std::max(maxResidual,std::abs(residual));
     return result;
 }
 double PowerWaveStrings::storedStringEnergy() const noexcept {
     double e=0.;for(const auto& both:waves)for(const auto& w:both)
-        e+=w.queueEnergy+dt*w.z*w.apState*w.apState;
+        e+=waveStoredEnergy(w,dt);
     return e;
 }
 double PowerWaveStrings::storedBridgeEnergy() const noexcept {
@@ -152,12 +204,95 @@ double PowerWaveStrings::bridgeDissipation() const noexcept {
 }
 double PowerWaveStrings::energyResidual() const noexcept {
     return storedStringEnergy()+storedBridgeEnergy()+bridgeDissipation()
-        +lostToPropagation+mutedEnergy-externalEnergy;
+        +lostToPropagation+mutedEnergy+contactDissipation11+axialDissipation11-externalEnergy;
 }
 bool PowerWaveStrings::sane() const noexcept {
     return bridges[0].sane()&&bridges[1].sane()
         &&std::isfinite(energyResidual())&&storedStringEnergy()>=-1e-8
         &&std::isfinite(lostToPropagation)&&lostToPropagation>=-1e-8;
+}
+void PowerWaveStrings::applyLocalContacts11() noexcept {
+    // All interactions act on real waveguide state, NEVER on the output mix.
+    // Wave cell has physical energy h Z v^2. An orthogonal scattering between
+    // sqrt(h Z)*v and sqrt(J) contact coordinates is exactly power balanced.
+    for(int si=0;si<strings;++si){
+        auto& both=waves[size_t(si)];
+        for(int p=0;p<planes;++p){
+            auto& w=both[size_t(p)];
+            const int n=w.integerDelay;
+            const double norm=std::sqrt(dt*w.z);
+            // Compliant finite-duration pluck: contact spring releases energy
+            // into the wave at a physical location. On detachment the remaining
+            // spring energy is dissipated by the player's hand/pick.
+            if(w.pickSamples>0){
+                const int loc=std::clamp(int(std::lround(n*w.pickPosition)),2,n-2);
+                const int ix=(w.cursor+loc)%n;
+                const double x=norm*w.ring[size_t(ix)];
+                const double q=w.pickEnergyWave;
+                const double theta=.16+.18*pickHardness;
+                const double co=std::cos(theta),sn=std::sin(theta);
+                const double xn=co*x+sn*q,qn=co*q-sn*x;
+                w.queueEnergy+=xn*xn-x*x;
+                w.ring[size_t(ix)]=xn/norm;
+                w.pickEnergyWave=qn;
+                if(--w.pickSamples==0){
+                    contactDissipation11+=qn*qn;
+                    w.pickEnergyWave=0.;
+                }
+            }
+            // Unilateral dissipative fret collisions. Contact position and
+            // penetration are low-order waveguide proxies, not yet exact
+            // string/fret geometric constraints. Reflection cannot gain energy.
+            for(int k=0;k<3;++k){
+                const int ix=(w.cursor+std::clamp(int(n*(.18+.19*k)),2,n-2))%n;
+                const double v=w.ring[size_t(ix)];
+                double& displacement=w.fretDisplacement[size_t(k)];
+                displacement=.9999*displacement+dt*v;
+                int& cool=w.fretCooldown[size_t(k)];
+                if(cool>0)--cool;
+                const double gap=(.000004+.000014*fretClearance)*(1.+.28*k);
+                if(p==0 && cool==0 && displacement<-gap && v<-.0005){
+                    const double depth=std::min(.0001,-gap-displacement);
+                    const double restitution=clip(.94-.30*std::tanh(15000.*depth),.56,.94);
+                    const double updated=-restitution*v;
+                    const double oldE=dt*w.z*v*v,newE=dt*w.z*updated*updated;
+                    w.ring[size_t(ix)]=updated;
+                    w.queueEnergy+=newE-oldE;
+                    contactDissipation11+=oldE-newE;
+                    displacement=-gap;
+                    cool=std::max(1,int(rate/1600.));
+                    ++collisions11;
+                }
+            }
+        }
+        // Geometric nonlinear transverse/longitudinal interaction: orthogonal
+        // rotations share stored energy between two transverse components and
+        // one axial oscillator. Variable angle depends on excitation amplitude;
+        // this is a *reduced-order* nonlinear effect, not a full PDE solver.
+        auto& a=both[0];auto& b=both[1];
+        const int ia=(a.cursor+std::clamp(int(a.integerDelay*.41),2,a.integerDelay-2))%a.integerDelay;
+        const int ib=(b.cursor+std::clamp(int(b.integerDelay*.41),2,b.integerDelay-2))%b.integerDelay;
+        const double na=std::sqrt(dt*a.z),nb=std::sqrt(dt*b.z);
+        double xa=na*a.ring[size_t(ia)],xb=nb*b.ring[size_t(ib)];
+        double q=a.axialQ,p=a.axialP;
+        const double theta=.032*std::tanh(1200.*std::hypot(xa,xb));
+        const double ca=std::cos(theta),sa=std::sin(theta);
+        const double nx=ca*xa+sa*q;
+        q=ca*q-sa*xa;
+        const double ny=ca*xb+sa*q;
+        q=ca*q-sa*xb;
+        a.queueEnergy+=nx*nx-xa*xa;
+        b.queueEnergy+=ny*ny-xb*xb;
+        a.ring[size_t(ia)]=nx/na;
+        b.ring[size_t(ib)]=ny/nb;
+        const double omega=2.*pi*(guitarModel==3?820.:1430.)/rate;
+        const double phaseQ=std::cos(omega)*q-std::sin(omega)*p;
+        const double phaseP=std::sin(omega)*q+std::cos(omega)*p;
+        const double damping=std::exp(-8./rate);
+        axialDissipation11+=(1.-damping*damping)*(phaseQ*phaseQ+phaseP*phaseP);
+        a.axialQ=damping*phaseQ;
+        a.axialP=damping*phaseP;
+    }
 }
 double PowerWaveStrings::stringImpedance(int s) const noexcept {
     return s>=0&&s<strings?waves[size_t(s)][0].z:0.;

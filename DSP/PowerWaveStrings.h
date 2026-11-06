@@ -13,13 +13,15 @@ class PowerWaveStrings {
 public:
     static constexpr int strings=6, planes=2, maxDelay=8192;
     struct Frame {
-        double left=0.,right=0.,stringVelocity=0.,bridgeVelocity=0.;
+        double left=0.,right=0.,stringVelocity=0.,bridgeVelocity=0.,pickupVelocity=0.;
     };
     void prepare(double sr, int model) noexcept;
     bool strike(int stringIndex,int midiNote,double velocity,double pluck) noexcept;
     void release(int stringIndex) noexcept;
     void releaseAll() noexcept;
     void setDecay(double seconds) noexcept;
+    void setPhysics11(bool enable) noexcept;
+    void setContactParameters(double hardness, double clearance, double pickupLocation) noexcept;
     Frame tick() noexcept;
     double storedStringEnergy() const noexcept;
     double storedBridgeEnergy() const noexcept;
@@ -27,6 +29,9 @@ public:
     double dampingAtReattack() const noexcept {return mutedEnergy;}
     double injectedEnergy() const noexcept {return externalEnergy;}
     double bridgeDissipation() const noexcept;
+    double localContactDissipation11() const noexcept {return contactDissipation11;}
+    double longitudinalDissipation11() const noexcept {return axialDissipation11;}
+    int fretCollisions11() const noexcept {return collisions11;}
     double energyResidual() const noexcept;
     double largestAbsResidual() const noexcept {return maxResidual;}
     bool sane() const noexcept;
@@ -39,6 +44,11 @@ private:
         double z=0.2, allpassA=0., allpassB=1., apState=0., queueEnergy=0.;
         double gain=0.998, nominalHz=110., stringLength=.65;
         bool releasing=false;
+        double pickPosition=.18, pickEnergyWave=0.; // normalized spring coordinate, sqrt(J)
+        double axialQ=0.,axialP=0.; // reduced-order longitudinal quadratures, sqrt(J)
+        std::array<double,3> fretDisplacement{};
+        std::array<int,3> fretCooldown{};
+        int pickSamples=0;
         double read() const noexcept {return ring[std::size_t(cursor)];}
         void clear() noexcept;
     };
@@ -47,5 +57,11 @@ private:
     double dt=1./48000.,rate=48000.,decaySec=4.,externalEnergy=0.,
            lostToPropagation=0.,mutedEnergy=0.,maxResidual=0.;
     int guitarModel=2;
+    bool physics11=false;
+    double pickHardness=.6, fretClearance=.65, pickupLocation=.15;
+    double contactDissipation11=0., axialDissipation11=0.;
+    int collisions11=0;
+    static double waveStoredEnergy(const Wave& w,double dt) noexcept;
+    void applyLocalContacts11() noexcept;
 };
 }
