@@ -47,8 +47,13 @@ def main(args):
                     f'--string={take["string"]}', '--bridge-measured08=0',
                     *[f'--{k}={v}' for k,v in options.items()]]
                 subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
-                score,detail=distance(ref,features(wav,take['midi']))
-                row['results'][variant]={'score':float(score),'detail':detail}
+                try:
+                    score,detail=distance(ref,features(wav,take['midi']))
+                    row['results'][variant]={'score':float(score),'detail':detail}
+                except ValueError as exc:
+                    if 'silent reference' not in str(exc):
+                        raise
+                    row['results'][variant]={'score':None,'detail':{'status':'silent'}}
             records.append(row)
             print('COMPARED',i,kind,row['midi'],
                   'hybrid',round(row['results']['hybrid11_full']['score'],3),
@@ -57,11 +62,16 @@ def main(args):
     for kind in ('electric','steel','nylon'):
         samples=[x for x in records if x['kind']==kind]
         if not samples: continue
-        metrics={v:float(np.mean([x['results'][v]['score'] for x in samples])) for v in CASES}
+        metrics={}
+        for v in CASES:
+            numbers=[x['results'][v]['score'] for x in samples]
+            valid=[x for x in numbers if x is not None]
+            metrics[v]=float(np.mean(valid)) if len(valid)==len(numbers) else None
         full=metrics['hybrid11_full']
         # Independent mechanism contribution to the 1.1 misfit, not physical
         # proof of causation. The other three modules remain enabled.
-        diff={k:round(metrics[k]-full,4) for k in CASES if k.startswith('hybrid11_no_')}
+        diff={k:(round(metrics[k]-full,4) if metrics[k] is not None else None)
+              for k in CASES if k.startswith('hybrid11_no_')}
         summary[kind]={'count':len(samples),'scores':metrics,'hybrid_ablation_delta':diff,
             'unified_beats_hybrid':metrics['unified12_full']<metrics['hybrid11_full']}
     report={'source':SRC,'summary':summary,'notes':records,'n_cases':len(CASES),
@@ -74,7 +84,10 @@ def main(args):
         rows.append(f'| {model} | {sc["hybrid11_full"]:.3f} | {sc["unified12_full"]:.3f} | {"yes" if row["unified_beats_hybrid"] else "no"} |')
     rows+=['','## Mechanism-off effects in 1.1 hybrid','', 'Positive delta: turning mechanism OFF increased reference error. Negative: turning OFF improved fit.','','| Model | No pick | No fret | No axial | No pickup |','|---|---:|---:|---:|---:|']
     for model,row in summary.items():
-        d=row['hybrid_ablation_delta'];rows.append('| '+model+' | '+' | '.join(f'{d["hybrid11_no_"+k]:+.3f}' for k in ('pick','fret','axial','pickup'))+' |')
+        d=row['hybrid_ablation_delta']
+        rows.append('| '+model+' | '+' | '.join(
+            f'{d["hybrid11_no_"+k]:+.3f}' if d['hybrid11_no_'+k] is not None else 'silent'
+            for k in ('pick','fret','axial','pickup'))+' |')
     rows+=['','The reported score does not identify real material constants, and does not replace blind listening.',report['limitations']]
     (args.out/'PHYSICS12_ABLATION_SUMMARY.md').write_text('\n'.join(rows)+'\n',encoding='utf-8')
     print('SUMMARY',json.dumps(summary),flush=True)
