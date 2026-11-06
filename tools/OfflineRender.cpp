@@ -63,6 +63,8 @@ int main(int argc,char**argv)
             else if(key=="nylon-treble14") c.nylonTreble14=std::clamp(val,0.f,1.f);
             else if(key=="magnetic15") c.magnetic15=val>.5f;
             else if(key=="radiation15") c.radiation15=val>.5f;
+            else if(key=="radiation16") c.radiation16=val>.5f;
+            else if(key=="late-body16") c.lateBody16=std::clamp(val,0.f,1.f);
             else if(key=="direct-phase15") c.directPhase15=std::clamp(val,0.f,1.f);
             else if(key=="bridge-measured08") c.measuredBridge08=val>.5f;
             else if(key=="physics06") c.physics06=val>.5f;

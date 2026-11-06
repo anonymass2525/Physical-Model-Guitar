@@ -25,6 +25,8 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawNylonTreble14 = parameters.getRawParameterValue("nylonTreble14");
     rawMagnetic15 = parameters.getRawParameterValue("magnetic15");
     rawRadiation15 = parameters.getRawParameterValue("radiation15");
+    rawRadiation16 = parameters.getRawParameterValue("radiation16");
+    rawLateBody16 = parameters.getRawParameterValue("lateBody16");
     rawDirectPhase15 = parameters.getRawParameterValue("directPhase15");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
@@ -103,6 +105,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "1.5 Measured Nylon Nearfield Complex Radiation (A/B)", false));
     l.add(std::make_unique<P>(juce::ParameterID{"directPhase15",1},
           "1.5 String/Body Air Delay Hypothesis",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"radiation16",1},
+          "1.6 Long Nylon Body Modes / 1.5 A/B",false));
+    l.add(std::make_unique<P>(juce::ParameterID{"lateBody16",1},
+          "1.6 Long Body Tail Mix",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -163,6 +169,8 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
     if (rawNylonTreble14 != nullptr) c.nylonTreble14 = rawNylonTreble14->load(std::memory_order_relaxed);
     if (rawMagnetic15 != nullptr) c.magnetic15 = rawMagnetic15->load(std::memory_order_relaxed) > .5f;
     if (rawRadiation15 != nullptr) c.radiation15 = rawRadiation15->load(std::memory_order_relaxed) > .5f;
+    if (rawRadiation16 != nullptr) c.radiation16 = rawRadiation16->load(std::memory_order_relaxed) > .5f;
+    if (rawLateBody16 != nullptr) c.lateBody16 = rawLateBody16->load(std::memory_order_relaxed);
     if (rawDirectPhase15 != nullptr) c.directPhase15 = rawDirectPhase15->load(std::memory_order_relaxed);
     if (rawMeasuredBridge08 != nullptr)
         c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
@@ -274,7 +282,7 @@ void PhysicalModelGuitarAudioProcessor::setStateInformation(const void *data, in
         }
     }
     editorWidth.store(juce::jlimit(900, 1800, int(state.getProperty("editorWidth", 1040))));
-    editorHeight.store(juce::jlimit(725, 1450, int(state.getProperty("editorHeight", 840))));
+    editorHeight.store(juce::jlimit(792, 1584, int(state.getProperty("editorHeight", 880))));
     parameters.replaceState(state);
 }
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
