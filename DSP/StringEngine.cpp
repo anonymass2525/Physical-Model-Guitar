@@ -482,6 +482,7 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     nylonRadiation14.prepare(rate);
     measuredMagnetic15.prepare(rate);
     measuredNylon15.prepare(rate);
+    longRadiation16.prepare(rate);
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
@@ -493,7 +494,7 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     smoothedOutput=gain;
     smoothedBody=c.body;
     smoothedCoupling=c.coupling;
-    lastBodyMotion=unifiedSensorLowL=unifiedSensorLowR=unifiedElectronics=unifiedSensorHi=0.f;
+    lastBodyMotion=unifiedSensorLowL=unifiedSensorLowR=unifiedElectronics=unifiedSensorHi=smoothedLateRadiation16=0.f;
     smoothAlpha = 1.f-std::exp(-1.f/(rate*.008f));
 }
 void StringEngine::setControls(const Controls& c) noexcept
@@ -655,7 +656,23 @@ StereoFrame StringEngine::nextFrame() noexcept
                     bodyAmount,controls.nylonTreble14);
                 const auto sound15=measuredNylon15.tick(powerStrings10,micL,micR,
                     bodyAmount,controls.directPhase15);
-                if(controls.radiation15){
+                // 1.6: a separate causal two-input/two-output late modal
+                // observer. Runs while bypassed to avoid stale oscillator
+                // states on switching; does NOT feed back into the SI waveguide.
+                const auto late16=longRadiation16.tick(micL,micR);
+                const float targetTail16=controls.radiation16?limit(0.f,1.f,controls.lateBody16):0.f;
+                smoothedLateRadiation16 += smoothAlpha*(targetTail16-smoothedLateRadiation16);
+                if(controls.radiation16 || (controls.radiation15 && smoothedLateRadiation16>1.e-5f)){
+                    // The 96-tap 1.5 near-field early response carries
+                    // calibrated phase; the 1.6 delayed modal bank adds a
+                    // proposed 2-500 ms soundboard tail. The string's direct
+                    // radiation keeps its independently tunable phase delay.
+                    const float tail=limit(0.f,1.f,smoothedLateRadiation16);
+                    const float gain=scale*.68f;
+                    left=gain*(float(sound15.left)+tail*float(late16.left));
+                    right=gain*(float(sound15.right)+tail*float(late16.right));
+                }
+                else if(controls.radiation15){
                     // Measured 2x2 near-field transfer, model-output gain chosen
                     // to match median synthetic 1.4 note RMS (NOT absolute Pa).
                     // The transfer itself still has ~54-80% heldout-bin error.

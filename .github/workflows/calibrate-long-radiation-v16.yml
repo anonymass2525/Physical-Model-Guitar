@@ -1,0 +1,28 @@
+name: PMG v1.6 - Identify Late Nylon Modal Pressure from Real Bridge Impulses
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/late-nylon-radiation-v16]
+    paths:
+      - tools/FitLongRadiation16.py
+      - tools/GenerateMeasuredObserver15.py
+      - .github/workflows/calibrate-long-radiation-v16.yml
+jobs:
+  calibrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy
+      - name: Fit stable causal real late modes to complex nearfield measurements
+        run: python tools/FitLongRadiation16.py --header identified/LongRadiation16Coeffs.h --report identified/FIT_LONG_RADIATION16.json
+      - name: Save derived coefficients/metrics ONLY, never raw third-party sound
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG16-Measured-Long-Radiation-Candidate
+          path: identified/
+          retention-days: 90
+          if-no-files-found: error

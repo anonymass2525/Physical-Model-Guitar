@@ -7,6 +7,7 @@
 #include "Observation13.h"
 #include "Observation14.h"
 #include "Observation15.h"
+#include "LongRadiation16.h"
 
 namespace pmg
 {
@@ -64,6 +65,8 @@ struct Controls
     float magneticAttack14=.5f, nylonTreble14=.5f;
     bool magnetic15=false, radiation15=false; // measured electrical load and nearfield microphone response, opt-in
     float directPhase15=.5f; // direct string-to-body relative propagation delay, unmeasured
+    bool radiation16=false; // proposed long 2x2 body modal radiation, opt-in
+    float lateBody16=.5f; // mix of late resonant field; not calibrated as absolute Pa
     PhysicalCalibration calibration{};
 };
 
@@ -192,6 +195,7 @@ private:
     NylonRadiation14 nylonRadiation14{};
     MeasuredMagnetic15 measuredMagnetic15{};
     MeasuredNylon15 measuredNylon15{};
+    LongRadiation16 longRadiation16;
     std::array<float, maxVoices> bridgeReflections09{};
     std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;
@@ -204,5 +208,6 @@ private:
     // Purely observational microphone/coil electronics. No feedback into waves.
     float unifiedSensorLowL=0.f, unifiedSensorLowR=0.f, unifiedElectronics=0.f;
     float unifiedSensorHi=0.f;
+    float smoothedLateRadiation16=0.f;
 };
 } // namespace pmg
