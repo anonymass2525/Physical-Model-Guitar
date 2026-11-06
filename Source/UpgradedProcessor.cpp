@@ -13,6 +13,7 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawPhysics07 = parameters.getRawParameterValue("physics07");
     rawPhysics08 = parameters.getRawParameterValue("physics08");
     rawMeasuredBridge08 = parameters.getRawParameterValue("measuredBridge08");
+    rawPhysics09 = parameters.getRawParameterValue("physics09");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -63,9 +64,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics07", 1},
           "Physics 0.7 Distributed Frets / 0.6 A/B", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics08", 1},
-         "Physics 0.8 Bridge Mobility / 0.7 A/B",true));
+          "Physics 0.8 Bridge Mobility / 0.7 A/B", true));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics09", 1},
+          "Physics 0.9 Passive Two-Location Bridge / 0.8 A/B", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
-         "Zenodo Classical Bridge (Experimental Scalar)",false));
+          "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
 }
 void PhysicalModelGuitarAudioProcessor::loadComparisonPreset(int model)
@@ -106,10 +109,12 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
         c.physics06 = rawPhysics06->load(std::memory_order_relaxed) > .5f;
     if (rawPhysics07 != nullptr)
         c.physics07 = rawPhysics07->load(std::memory_order_relaxed) > .5f;
-    if(rawPhysics08!=nullptr)
-        c.physics08=rawPhysics08->load(std::memory_order_relaxed)>.5f;
-    if(rawMeasuredBridge08!=nullptr)
-        c.measuredBridge08=rawMeasuredBridge08->load(std::memory_order_relaxed)>.5f;
+    if (rawPhysics08 != nullptr)
+        c.physics08 = rawPhysics08->load(std::memory_order_relaxed) > .5f;
+    if (rawPhysics09 != nullptr)
+        c.physics09 = rawPhysics09->load(std::memory_order_relaxed) > .5f;
+    if (rawMeasuredBridge08 != nullptr)
+        c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
         pmg::applyHeldoutCandidates(requestedModel(), c.calibration);
     return c;

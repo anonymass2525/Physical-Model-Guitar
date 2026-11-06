@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include "MeasuredBridge.h"
+#include "TwoPortBridge.h"
 
 namespace pmg
 {
@@ -34,8 +35,15 @@ struct Controls
     // Experimental v0.7: distributed unilateral fret contacts and energy-preserving reattack.
     // False is a bit-exact v0.6 code path.
     bool physics07 = false;
+    // Alternate bridge boundary + explicitly passive collocated mobility network.
     bool physics08 = false;
+    // Optional scalar vertical mobility identified from ONE external archival
+    // classical-guitar bridge. Research only; never default-on.
     bool measuredBridge08 = false;
+    // 0.9: 6-port passive wave-scattering termination on two spatial bridge points.
+    // Its exact energy ledger is local to the added boundary ports; the older
+    // displacement waveguides are not full SI-calibrated power-wave states.
+    bool physics09 = false;
     PhysicalCalibration calibration{};
 };
 
@@ -144,6 +152,9 @@ private:
     std::array<String, maxVoices> strings{};
     Body acousticBody{};
     MeasuredBridge measuredBridge{};
+    TwoPortBridge twoPortBridge{};
+    std::array<float, maxVoices> bridgeReflections09{};
+    std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;
     Model model = Model::original;
     Controls controls{};
