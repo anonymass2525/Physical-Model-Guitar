@@ -1,0 +1,62 @@
+name: PMG v1.8 Same-Guitar Physical Capture & Calibration Station
+on:
+  push:
+    branches: [research/same-guitar-capture-v18]
+  workflow_dispatch:
+jobs:
+  quality-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - name: Test synthetic simultaneous two-source fitting and invalid-rig rejection
+        run: |
+          python tests/test_measurement18.py
+          python tests/test_latency18.py
+          python tools/TestJointRadiation17.py
+  windows-measurement-installer:
+    runs-on: windows-2022
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install analysis and bundling dependencies
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Run synthetic validation (NOT real measurement data)
+        shell: pwsh
+        run: |
+          python tests/test_measurement18.py
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          python tests/test_latency18.py
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          python tools/TestJointRadiation17.py
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+      - name: Package 4-channel capture executable
+        run: python -m PyInstaller --noconfirm --clean --onefile --name PMGMeasurement18 --paths tools --collect-all sounddevice --collect-all _sounddevice_data tools/MeasurementStation18.py
+      - name: Package calibrated two-source measurement analyser
+        run: python -m PyInstaller --noconfirm --clean --onefile --name PMGQualify18 --paths tools tools/QualifyJointMeasurement18.py
+      - name: Package ADC-only latency verifier
+        run: python -m PyInstaller --noconfirm --clean --onefile --name PMGChannelLatency18 --paths tools tools/ChannelLatency18.py
+      - name: Create standalone Windows Measurement Lab installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe unavailable" }
+          New-Item -ItemType Directory -Force setup | Out-Null
+          & $iscc "/DRepoRoot=$((Get-Location).Path)" "/DOutputRoot=$((Get-Location).Path)\setup" "Installer\Measurement18.iss"
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          if (-not (Test-Path "setup\PhysicalModelGuitar-1.8-Measurement-Lab-Windows-x64-Setup.exe")) {throw "Missing installer"}
+      - name: Upload installer only, no private audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG18-SameGuitar-Measurement-Lab-Windows-Setup
+          path: setup/PhysicalModelGuitar-1.8-Measurement-Lab-Windows-x64-Setup.exe
+          retention-days: 90
+          if-no-files-found: error
