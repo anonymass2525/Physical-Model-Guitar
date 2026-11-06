@@ -475,6 +475,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     }
     measuredBridge.prepare(rate,bridgeModes);
     twoPortBridge.prepare(rate,bridgeModes);
+    powerStrings10.prepare(rate,int(model));
+    powerStrings10.setDecay(c.decay);
     stringPortZ09=TwoPortBridge::normalizedImpedance(int(model));
     bridgeReflections09.fill(0.f);
     bridgePortFeedback=0.f;
@@ -513,6 +515,7 @@ void StringEngine::setControls(const Controls& c) noexcept
         }
     }
     controls=c;
+    powerStrings10.setDecay(c.decay);
     gain=std::pow(10.f,limit(-36.f,12.f,c.output)*.05f);
 }
 void StringEngine::setPitchBend(float semitones) noexcept {bend=limit(-2.f,2.f,semitones);}
@@ -533,6 +536,7 @@ void StringEngine::noteOn(int note,float velocity) noexcept
     if(selected<0) return;
     // A new attack on a string interrupts its prior wave state, as on a guitar.
     strings[size_t(selected)].start(note,selected,note-tuning[size_t(selected)],velocity,rate,model,controls);
+    powerStrings10.strike(selected,note,velocity,controls.pluck);
 }
 bool StringEngine::noteOnString(int note,float velocity,int physicalString) noexcept
 {
@@ -540,15 +544,17 @@ bool StringEngine::noteOnString(int note,float velocity,int physicalString) noex
     const int fret=note-tuning[size_t(physicalString)];
     if(fret<0 || fret>24) return false;
     strings[size_t(physicalString)].start(note,physicalString,fret,velocity,rate,model,controls);
+    powerStrings10.strike(physicalString,note,velocity,controls.pluck);
     return true;
 }
 void StringEngine::noteOff(int note) noexcept
 {
-    for(auto& s:strings) if(s.active && s.midiNote==note) s.releasing=true;
+    for(auto& s:strings) if(s.active && s.midiNote==note) {s.releasing=true;powerStrings10.release(s.stringNumber);}
 }
 void StringEngine::allNotesOff() noexcept
 {
     for(auto& s:strings) if(s.active) s.releasing=true;
+    powerStrings10.releaseAll();
 }
 int StringEngine::assignedString(int note) const noexcept
 {
@@ -590,6 +596,11 @@ StereoFrame StringEngine::nextFrame() noexcept
         direct += out.direct;
         fret += out.fret;
     }
+    // The new fully accounted waveguide subsystem runs independently
+    // from the legacy 0.9 dry/contact model for safe A/B comparison.
+    // Its own 12 wave ports, losses, nut reflections, and bridge are in SI
+    // units. Legacy 0.9 DSP is deliberately excluded from this energy ledger.
+    const auto power10=powerStrings10.tick();
     // 3: every string drives the same 10-mode soundboard, whose mobility
     // reacts back on *every* active string on the next sample.
     float bodyL=0.f,bodyR=0.f;
@@ -638,7 +649,16 @@ StereoFrame StringEngine::nextFrame() noexcept
         bodyR=acousticBody.radiated.right;
     }
     const bool isElectric=model==Model::electric;
-    const float dry=isElectric?electric : (direct+fret*.16f)*2.4f;
+    float dry=isElectric?electric : (direct+fret*.16f)*2.4f;
+    if(controls.physics10) {
+        // Research A/B layer: lossless power-wave core provides additional
+        // string/bridge character, while the older nonlinear pick/fret model
+        // remains as a separate *not-energy-accounted* dry renderer.
+        const float physical=limit(-.3f,.3f,float(power10.stringVelocity));
+        dry += physical*(isElectric?14.f:3.f);
+        bodyL+=float(power10.left)*6.f;
+        bodyR+=float(power10.right)*6.f;
+    }
     const float bodyScale=isElectric?.05f:8.8f;
     const float wet=limit(0.f,1.f,smoothedBody);
     StereoFrame s;
