@@ -13,7 +13,7 @@ class PowerWaveStrings {
 public:
     static constexpr int strings=6, planes=2, maxDelay=8192;
     struct Frame {
-        double left=0.,right=0.,stringVelocity=0.,bridgeVelocity=0.,pickupVelocity=0.;
+        double left=0.,right=0.,stringVelocity=0.,bridgeVelocity=0.,pickupVelocity=0.,stringTapVelocity=0.;
     };
     void prepare(double sr, int model) noexcept;
     bool strike(int stringIndex,int midiNote,double velocity,double pluck) noexcept;
@@ -21,6 +21,7 @@ public:
     void releaseAll() noexcept;
     void setDecay(double seconds) noexcept;
     void setPhysics11(bool enable) noexcept;
+    void setMechanisms(bool pick, bool fret, bool longitudinal, bool sensor) noexcept;
     void setContactParameters(double hardness, double clearance, double pickupLocation) noexcept;
     Frame tick() noexcept;
     double storedStringEnergy() const noexcept;
@@ -58,6 +59,7 @@ private:
            lostToPropagation=0.,mutedEnergy=0.,maxResidual=0.;
     int guitarModel=2;
     bool physics11=false;
+    bool enablePick=true, enableFret=true, enableAxial=true, enableSensor=true;
     double pickHardness=.6, fretClearance=.65, pickupLocation=.15;
     double contactDissipation11=0., axialDissipation11=0.;
     int collisions11=0;

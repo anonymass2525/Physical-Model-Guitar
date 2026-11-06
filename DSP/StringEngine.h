@@ -49,6 +49,10 @@ struct Controls
     bool physics10 = true;
     // 1.1: local pick/fret scattering, reduced axial modes, position-aware pickup.
     bool physics11 = true;
+    // v1.2: audible signal only from 12 SI velocity-wave states + two-port bridge.
+    // Legacy dry engine is completely bypassed in the unified branch.
+    bool physics12 = false;
+    bool pick12 = true, fret12 = true, axial12 = true, pickup12 = true;
     PhysicalCalibration calibration{};
 };
 
@@ -84,6 +88,13 @@ public:
     double powerWaveAxialLoss11() const noexcept {return powerStrings10.longitudinalDissipation11();}
     double powerWaveResidual10() const noexcept {return powerStrings10.energyResidual();}
     double powerWaveStringJoules10() const noexcept {return powerStrings10.storedStringEnergy();}
+    double unifiedEnergyInput12() const noexcept {return powerStrings10.injectedEnergy();}
+    double unifiedBridgeEnergy12() const noexcept {return powerStrings10.storedBridgeEnergy();}
+    double unifiedAllDissipations12() const noexcept {
+        return powerStrings10.propagationLoss()+powerStrings10.dampingAtReattack()
+            +powerStrings10.bridgeDissipation()+powerStrings10.localContactDissipation11()
+            +powerStrings10.longitudinalDissipation11();
+    }
 
 private:
     struct Waveguide
@@ -173,5 +184,8 @@ private:
     float smoothedOutput = 1.f, smoothedBody = .24f, smoothedCoupling = .45f;
     float lastBodyMotion = 0.f;
     int contacts = 0;
+    // Purely observational microphone/coil electronics. No feedback into waves.
+    float unifiedSensorLowL=0.f, unifiedSensorLowR=0.f, unifiedElectronics=0.f;
+    float unifiedSensorHi=0.f;
 };
 } // namespace pmg

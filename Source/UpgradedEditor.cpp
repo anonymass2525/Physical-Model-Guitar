@@ -343,6 +343,12 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
                     physical09.selected = physics09On;
                     physical09.repaint();
                 }, &p.undo),
+          physics12Attachment(*p.parameters.getParameter("physics12"),
+                [this](float v) {
+                    physics12On = v > .5f;
+                    physical12.selected=physics12On;
+                    physical12.repaint();
+                }, &p.undo),
           physics11Attachment(*p.parameters.getParameter("physics11"),
                 [this](float v) {
                     physics11On = v > .5f;
@@ -377,6 +383,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
           }),
           physical09("BRIDGE 0.9 TWO-PORT / 0.8: A/B", [this] {
               physics09Attachment.setValueAsCompleteGesture(physics09On ? 0.f : 1.f);
+          }),
+          physical12("1.2 UNIFIED / 1.1 HYBRID: A/B", [this] {
+              physics12Attachment.setValueAsCompleteGesture(physics12On ? 0.f : 1.f);
           }),
           physical11("1.1 CONTACT / AXIAL: A/B", [this] {
               physics11Attachment.setValueAsCompleteGesture(physics11On ? 0.f : 1.f);
@@ -422,6 +431,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         addAndMakeVisible(physical09);
         addAndMakeVisible(physical10);
         addAndMakeVisible(physical11);
+        addAndMakeVisible(physical12);
         addAndMakeVisible(measured08);
         modelAttachment.sendInitialUpdate();
         calibrationAttachment.sendInitialUpdate();
@@ -431,6 +441,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         physics09Attachment.sendInitialUpdate();
         physics10Attachment.sendInitialUpdate();
         physics11Attachment.sendInitialUpdate();
+        physics12Attachment.sendInitialUpdate();
         measured08Attachment.sendInitialUpdate();
     }
     void refresh()
@@ -492,7 +503,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         text(g, "Drag vertically / Shift: fine / Wheel or arrows / Double-click: reset", {24, 716, 645, 18},
              11, muted);
         text(g,
-             "1.1 research: pick / frets / axial motion share power-wave states; legacy dry remains separate.",
+             "1.2 research: unified wave+bridge synthesis; 1.1 legacy hybrid A/B remains available.",
              {24, 736, 950, 15}, 10, muted);
     }
     void resized() override
@@ -513,6 +524,7 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         physical07.setBounds(697, 348, 260, 20);
         physical10.setBounds(697, 373, 260, 24);
         physical11.setBounds(390, 24, 245, 32);
+        physical12.setBounds(697, 274, 260, 24);
         physical09.setBounds(697, 676, 260, 25);
         physical08.setBounds(697, 701, 260, 25);
         measured08.setBounds(697, 728, 260, 25);
@@ -529,10 +541,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
   private:
     PhysicalModelGuitarAudioProcessor &processor;
     int chosen = 0;
-    bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, measured08On = false;
-    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, measured08Attachment;
+    bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, physics12On = true, measured08On = false;
+    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment;
     std::array<std::unique_ptr<Action>, 4> models;
-    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, measured08;
+    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08;
 };
 PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor(
     PhysicalModelGuitarAudioProcessor &p)

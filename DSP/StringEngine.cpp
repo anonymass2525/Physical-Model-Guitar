@@ -479,6 +479,7 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
+    powerStrings10.setMechanisms(c.pick12,c.fret12,c.axial12,c.pickup12);
     stringPortZ09=TwoPortBridge::normalizedImpedance(int(model));
     bridgeReflections09.fill(0.f);
     bridgePortFeedback=0.f;
@@ -486,7 +487,7 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     smoothedOutput=gain;
     smoothedBody=c.body;
     smoothedCoupling=c.coupling;
-    lastBodyMotion=0;
+    lastBodyMotion=unifiedSensorLowL=unifiedSensorLowR=unifiedElectronics=unifiedSensorHi=0.f;
     smoothAlpha = 1.f-std::exp(-1.f/(rate*.008f));
 }
 void StringEngine::setControls(const Controls& c) noexcept
@@ -520,6 +521,7 @@ void StringEngine::setControls(const Controls& c) noexcept
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
+    powerStrings10.setMechanisms(c.pick12,c.fret12,c.axial12,c.pickup12);
     gain=std::pow(10.f,limit(-36.f,12.f,c.output)*.05f);
 }
 void StringEngine::setPitchBend(float semitones) noexcept {bend=limit(-2.f,2.f,semitones);}
@@ -580,6 +582,47 @@ StereoFrame StringEngine::nextFrame() noexcept
     smoothedOutput += alpha*(gain-smoothedOutput);
     smoothedBody += alpha*(controls.body-smoothedBody);
     smoothedCoupling += alpha*(controls.coupling-smoothedCoupling);
+    if(controls.physics12){
+        // ENTIRE AUDIBLE EXCITATION uses ONE SI wave/bridge model.  No legacy
+        // displacement-wave tick, dry mix, proxy bridge forcing or parallel
+        // resonator is processed in this branch. The sensors below are ideal
+        // non-loading readouts (acoustic radiation power is not yet modeled).
+        const auto f=powerStrings10.tick();
+        lastBodyMotion=float(f.bridgeVelocity);
+        const bool electric=model==Model::electric;
+        const float micL=float(f.left),micR=float(f.right);
+        const float pickup=float(f.pickupVelocity);
+        const float stringReadout=float(f.stringTapVelocity);
+        // A non-invasive low-order microphone or electrical load readout:
+        // changing these filters cannot alter the tracked physical energy.
+        const float micLP=electric?.06f:.11f;
+        unifiedSensorLowL+=micLP*(micL-unifiedSensorLowL);
+        unifiedSensorLowR+=micLP*(micR-unifiedSensorLowR);
+        unifiedElectronics+=.10f*(pickup-unifiedElectronics);
+        unifiedSensorHi+=.018f*(unifiedElectronics-unifiedSensorHi);
+        const float bodyAmount=limit(0.f,1.f,smoothedBody);
+        float left,right;
+        if(electric){
+            // Electric DI: the pick-up reads the same wave state as the bridge
+            // sensor; its magnetic force backaction is intentionally omitted.
+            const float e=unifiedElectronics*.78f+unifiedSensorHi*.22f;
+            left=17.f*e + .14f*bodyAmount*unifiedSensorLowL;
+            right=17.f*e + .14f*bodyAmount*unifiedSensorLowR;
+        }else{
+            // Acoustic: soundboard velocity is primary; local string-motion
+            // leakage approximates near-field string radiation without energy
+            // feedback. The air acoustic impedance is not identified yet.
+            const float scale=model==Model::nylon?125.f:140.f;
+            const float stringLeak=.025f*stringReadout;
+            left=scale*(unifiedSensorLowL*(.22f+.78f*bodyAmount)+stringLeak);
+            right=scale*(unifiedSensorLowR*(.22f+.78f*bodyAmount)+stringLeak*.92f);
+        }
+        const auto safe=[](float v) noexcept {
+            if(!std::isfinite(v))return 0.f;
+            return std::abs(v)<.94f?v:std::copysign(.94f+.06f*std::tanh(12.f*(std::abs(v)-.94f)),v);
+        };
+        return {safe(left*smoothedOutput),safe(right*smoothedOutput)};
+    }
     float bridgeForce=0, electric=0, direct=0, fret=0;
     float bridgeForceX=0, bridgeForceY=0;
     std::array<double,maxVoices> incidence09{};

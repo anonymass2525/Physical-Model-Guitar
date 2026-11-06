@@ -16,6 +16,7 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawPhysics09 = parameters.getRawParameterValue("physics09");
     rawPhysics10 = parameters.getRawParameterValue("physics10");
     rawPhysics11 = parameters.getRawParameterValue("physics11");
+    rawPhysics12 = parameters.getRawParameterValue("physics12");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -73,6 +74,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "Physics 1.0 Physical Velocity-Wave String / 0.9 A/B Research", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics11", 1},
           "Physics 1.1 Integrated Pick/Fret/Longitudinal/Pickup A/B", true));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics12", 1},
+          "Physics 1.2 Unified Wave / 1.1 Hybrid A/B", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -123,6 +126,8 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
         c.physics10 = rawPhysics10->load(std::memory_order_relaxed) > .5f;
     if (rawPhysics11 != nullptr)
         c.physics11 = rawPhysics11->load(std::memory_order_relaxed) > .5f;
+    if (rawPhysics12 != nullptr)
+        c.physics12 = rawPhysics12->load(std::memory_order_relaxed) > .5f;
     if (rawMeasuredBridge08 != nullptr)
         c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
