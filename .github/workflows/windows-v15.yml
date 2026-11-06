@@ -2,7 +2,7 @@ name: PMG v1.5 Physical Velocity-Wave Strings - Windows VST3 Installer
 on:
   push:
     branches:
-      - research/observer-refinement-v15
+      - research/measured-observers-v15
   workflow_dispatch:
 
 jobs:
