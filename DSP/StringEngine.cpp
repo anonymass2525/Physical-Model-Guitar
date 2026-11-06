@@ -355,8 +355,10 @@ StringEngine::String::Output StringEngine::String::tick(
         longitudinalBridge=axialContribution;
     }
     previousBridge=bridge;
-    if(c.physics08) {
-        // Normalised two-polarisation source velocity proxy (NOT calibrated newtons).
+    if(c.physics08 || c.physics09) {
+        // Orthogonal string-end velocity proxies. The measured boundary converts
+        // force to bridge velocity; these are normalized string-source proxies,
+        // not an SI-calibrated string impedance measurement.
         out.bridgeX=wav0-previousBridgeX;
         out.bridgeY=wav1-previousBridgeY;
         previousBridgeX=wav0;previousBridgeY=wav1;
@@ -467,11 +469,14 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     auto bridgeModes=(c.measuredBridge08 && m==Model::nylon)
         ? zenodoMeasuredBridgeCandidate() : MeasuredBridge::fallbackGuitar(int(m));
     for(size_t i=0;i<bridgeModes.size();++i) {
-        bridgeModes[i].frequencyHz*=c.calibration.modeFrequency[i]/std::max(.7f,c.size);
-        bridgeModes[i].Q*=c.calibration.modeQ[i];
-        bridgeModes[i].effectiveMass/=std::max(.25f,c.calibration.modeGain[i]);
+        bridgeModes[i].frequencyHz *= c.calibration.modeFrequency[i]/std::max(.7f,c.size);
+        bridgeModes[i].Q *= c.calibration.modeQ[i];
+        bridgeModes[i].effectiveMass /= std::max(.25f,c.calibration.modeGain[i]);
     }
     measuredBridge.prepare(rate,bridgeModes);
+    twoPortBridge.prepare(rate,bridgeModes);
+    stringPortZ09=TwoPortBridge::normalizedImpedance(int(model));
+    bridgeReflections09.fill(0.f);
     bridgePortFeedback=0.f;
     gain=std::pow(10.f,c.output*.05f);
     smoothedOutput=gain;
@@ -482,8 +487,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
 }
 void StringEngine::setControls(const Controls& c) noexcept
 {
-    bool bodyChanged=std::abs(c.size-controls.size)>.0005f
-        || c.measuredBridge08!=controls.measuredBridge08;
+    bool bodyChanged=std::abs(c.size-controls.size)>.0005f ||
+        (c.measuredBridge08 != controls.measuredBridge08);
     for(int i=0;i<10 && !bodyChanged;++i) {
         const auto j=size_t(i);
         bodyChanged = c.calibration.modeFrequency[j]!=controls.calibration.modeFrequency[j]
@@ -491,8 +496,10 @@ void StringEngine::setControls(const Controls& c) noexcept
                    || c.calibration.modeGain[j]!=controls.calibration.modeGain[j];
     }
     if(bodyChanged) {
-        acousticBody.configure(rate,model,c.size,c.calibration,false);
-        if(controls.physics08 && c.physics08) {
+        acousticBody.configure(rate,model,c.size,c.calibration,false); // legacy smooth coefficients
+        if((controls.physics08 && c.physics08) || (controls.physics09 && c.physics09)) {
+            // Parameter change updates a passive model. Live interpolation of
+            // calibrated mechanical poles is a separate research requirement.
             auto modes=(c.measuredBridge08 && model==Model::nylon)
                 ? zenodoMeasuredBridgeCandidate() : MeasuredBridge::fallbackGuitar(int(model));
             for(size_t i=0;i<modes.size();++i) {
@@ -501,6 +508,8 @@ void StringEngine::setControls(const Controls& c) noexcept
                 modes[i].effectiveMass/=std::max(.25f,c.calibration.modeGain[i]);
             }
             measuredBridge.prepare(rate,modes);
+            twoPortBridge.prepare(rate,modes);
+            bridgeReflections09.fill(0.f);
         }
     }
     controls=c;
@@ -562,12 +571,21 @@ StereoFrame StringEngine::nextFrame() noexcept
     smoothedBody += alpha*(controls.body-smoothedBody);
     smoothedCoupling += alpha*(controls.coupling-smoothedCoupling);
     float bridgeForce=0, electric=0, direct=0, fret=0;
-    float bridgeForceX=0,bridgeForceY=0;
-    for(auto& string:strings)
+    float bridgeForceX=0, bridgeForceY=0;
+    std::array<double,maxVoices> incidence09{};
+    for(int stringIndex=0;stringIndex<maxVoices;++stringIndex)
     {
-        auto out=string.tick(rate,model,controls,controls.physics08?bridgePortFeedback:acousticBody.feedback,bend,contacts);
+        auto& string=strings[size_t(stringIndex)];
+        // The old waveguide is retained for A/B reproducibility. In 0.9 the
+        // outgoing scattering correction returns per string, not one global
+        // bridge-feedback value. This adapter is still signal-normalised.
+        const float reaction = controls.physics09 ? bridgeReflections09[size_t(stringIndex)]
+            : controls.physics08 ? bridgePortFeedback : acousticBody.feedback;
+        auto out=string.tick(rate,model,controls,reaction,bend,contacts);
+        if(controls.physics09)
+            incidence09[size_t(stringIndex)]=.70*double(out.bridgeX)+.30*double(out.bridgeY);
         bridgeForce += out.bridge;
-        bridgeForceX+=out.bridgeX;bridgeForceY+=out.bridgeY;
+        bridgeForceX += out.bridgeX; bridgeForceY += out.bridgeY;
         electric += out.electric;
         direct += out.direct;
         fret += out.fret;
@@ -575,17 +593,42 @@ StereoFrame StringEngine::nextFrame() noexcept
     // 3: every string drives the same 10-mode soundboard, whose mobility
     // reacts back on *every* active string on the next sample.
     float bodyL=0.f,bodyR=0.f;
-    if(controls.physics08) {
-        // The bridge itself is positive-real, but existing waveguide scattering
-        // remains an approximate force boundary (not a full passive junction).
-        const float proxyForceScale=(controls.measuredBridge08&&model==Model::nylon)?21.6f:3600.f;
+    if(controls.physics09) {
+        // Passive six-wave-port -> two-location spatial bridge scattering.
+        // Each positive impedance and the port interpolation is used with
+        // its exact transpose, so the boundary cannot create wave energy.
+        const auto port=twoPortBridge.tick(incidence09,stringPortZ09);
+        const float mobility=std::max(0.f,controls.bridgeMobility);
+        for(int i=0;i<maxVoices;++i) {
+            // b_i = v_i - a_i. The old delay-line already reflects its own
+            // arriving displacement wave, therefore only the difference
+            // versus a rigid termination (-a_i) is reinjected here. This is
+            // NOT a proof of energy balance for the *legacy* delay line.
+            const double endpoint=port.stringEndpointVelocity[size_t(i)];
+            bridgeReflections09[size_t(i)]=float(std::clamp(-.20*endpoint*double(mobility),-.007,.007));
+        }
+        lastBodyMotion=.5f*(float(port.bridgeVelocity[0])+float(port.bridgeVelocity[1]));
+        const float radiationGain=(model==Model::electric?4.f:2.f);
+        bodyL=radiationGain*float(port.radiatedL);
+        bodyR=radiationGain*float(port.radiatedR);
+    }
+    else if(controls.physics08) {
+        // A common collocated two-axis modal admittance accepts forces from all
+        // six strings. Its damped modes cannot self-excite in isolation.
+        // The legacy displacement-waveguide contact here remains a bounded
+        // APPROXIMATION, not an exactly energy-conserving scattering junction.
+        // The measured mobility is in SI units, but the synthesized string's
+        // contact force currently is not. This explicit scale is a research
+        // normalisation, NOT a calibrated string force in newtons.
+        const float proxyForceScale=(controls.measuredBridge08 && model==Model::nylon)
+                                   ? 21.6f : 3600.f;
         const float mobilityGain=.45f+.55f*std::max(0.f,smoothedCoupling);
         const auto port=measuredBridge.tick(bridgeForceX*proxyForceScale*mobilityGain,
                                             bridgeForceY*proxyForceScale*mobilityGain);
         bridgePortFeedback=std::max(-.007f,std::min(.007f,
             -.12f*port.velocityX*std::max(0.f,controls.bridgeMobility)));
         lastBodyMotion=bridgePortFeedback;
-        const float radiationGain=model==Model::nylon?2.f:model==Model::steel?2.f:4.f;
+        const float radiationGain=(model==Model::nylon?2.0f:model==Model::steel?2.0f:4.f); // normalized scale, not calibrated Pa per N.
         bodyL=radiationGain*port.radiatedLeft;
         bodyR=radiationGain*port.radiatedRight;
     }else{
