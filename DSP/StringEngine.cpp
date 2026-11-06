@@ -477,6 +477,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     twoPortBridge.prepare(rate,bridgeModes);
     powerStrings10.prepare(rate,int(model));
     powerStrings10.setDecay(c.decay);
+    powerStrings10.setPhysics11(c.physics11 && c.physics10);
+    powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
     stringPortZ09=TwoPortBridge::normalizedImpedance(int(model));
     bridgeReflections09.fill(0.f);
     bridgePortFeedback=0.f;
@@ -516,6 +518,8 @@ void StringEngine::setControls(const Controls& c) noexcept
     }
     controls=c;
     powerStrings10.setDecay(c.decay);
+    powerStrings10.setPhysics11(c.physics11 && c.physics10);
+    powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
     gain=std::pow(10.f,limit(-36.f,12.f,c.output)*.05f);
 }
 void StringEngine::setPitchBend(float semitones) noexcept {bend=limit(-2.f,2.f,semitones);}
@@ -656,6 +660,13 @@ StereoFrame StringEngine::nextFrame() noexcept
         // remains as a separate *not-energy-accounted* dry renderer.
         const float physical=limit(-.3f,.3f,float(power10.stringVelocity));
         dry += physical*(isElectric?14.f:3.f);
+        if(controls.physics11) {
+            // Non-invasive pickup observation from the new velocity-wave state.
+            // Adds physical pickup-position comb behaviour without claiming
+            // to simulate a complete electromagnetic load.
+            const float sensed=limit(-.25f,.25f,float(power10.pickupVelocity));
+            dry+=sensed*(isElectric?4.0f:1.2f);
+        }
         bodyL+=float(power10.left)*6.f;
         bodyR+=float(power10.right)*6.f;
     }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(PhysicalModelGuitar VERSION 1.0.0 LANGUAGES C CXX)
+project(PhysicalModelGuitar VERSION 1.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
@@ -27,6 +27,9 @@ if(BUILD_TESTING)
     add_executable(PMGTwoPort09Tests Tests/TwoPortBridgeTests.cpp)
     target_link_libraries(PMGTwoPort09Tests PRIVATE PMGDSP)
     add_test(NAME PMG09_wave_energy_and_2port_scattering COMMAND PMGTwoPort09Tests)
+    add_executable(PMGPowerWave11Tests Tests/PowerWave11Tests.cpp)
+    target_link_libraries(PMGPowerWave11Tests PRIVATE PMGDSP)
+    add_test(NAME PMG11_instrument_scattering_ledger COMMAND PMGPowerWave11Tests)
     add_executable(PMGPowerWave10Tests Tests/PowerWave10Tests.cpp)
     target_link_libraries(PMGPowerWave10Tests PRIVATE PMGDSP)
     add_test(NAME PMG10_waveguide_energy_ledger COMMAND PMGPowerWave10Tests)
@@ -48,11 +51,11 @@ if(PMG_BUILD_PLUGIN)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
         COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.powerwaves10"
+        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.integrated11"
         PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE Pm10
-        PRODUCT_NAME "Physical Model Guitar 1.0 Research"
-        DESCRIPTION "Power-normalized travelling velocity-wave strings with passive bridge energy ledger"
+        PLUGIN_CODE Pm11
+        PRODUCT_NAME "Physical Model Guitar 1.1 Research"
+        DESCRIPTION "Power-wave strings with opt-in power-audited pick, fret, axial and pickup interactions"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
         FORMATS VST3 Standalone VST3_CATEGORIES Instrument)

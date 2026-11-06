@@ -49,6 +49,7 @@ int main(int argc,char**argv)
             else if(key=="physics08") c.physics08=val>.5f;
             else if(key=="physics09") c.physics09=val>.5f;
             else if(key=="physics10") c.physics10=val>.5f;
+            else if(key=="physics11") c.physics11=val>.5f;
             else if(key=="bridge-measured08") c.measuredBridge08=val>.5f;
             else if(key=="physics06") c.physics06=val>.5f;
             else if(key=="string") forcedString=int(val);

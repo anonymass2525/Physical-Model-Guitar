@@ -1,0 +1,29 @@
+name: PMG 1.1 Research - External Clean Guitar Comparison
+on:
+  push:
+    branches: [research/integrated-waves-v11]
+  workflow_dispatch:
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy soundfile
+      - name: Build native guitar DSP and run 11 tests
+        run: |
+          cmake -S . -B build -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build --parallel 3
+          ctest --test-dir build --parallel 4 --output-on-failure
+      - name: Measure 1.0 and 1.1 versus independently recorded guitar notes
+        run: python -u tools/Physics11ReferenceBenchmark.py --render build/PMGOfflineRender --out research-compare
+      - name: Upload numeric features only
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG11-External-Recording-Features
+          path: research-compare/physics11_reference_benchmark.json
+          retention-days: 90
+          if-no-files-found: error
