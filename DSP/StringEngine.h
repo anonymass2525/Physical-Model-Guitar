@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "MeasuredBridge.h"
 #include "TwoPortBridge.h"
+#include "PowerWaveStrings.h"
 
 namespace pmg
 {
@@ -44,6 +45,8 @@ struct Controls
     // Its exact energy ledger is local to the added boundary ports; the older
     // displacement waveguides are not full SI-calibrated power-wave states.
     bool physics09 = false;
+    // v1.0 experimental *physically dimensioned* velocity-wave/bridge subsystem.
+    bool physics10 = false;
     PhysicalCalibration calibration{};
 };
 
@@ -74,6 +77,8 @@ public:
     float bodyMotion() const noexcept { return lastBodyMotion; }
     int assignedString(int midiNote) const noexcept;
     float stringEnergy(int physicalString) const noexcept;
+    double powerWaveResidual10() const noexcept {return powerStrings10.energyResidual();}
+    double powerWaveStringJoules10() const noexcept {return powerStrings10.storedStringEnergy();}
 
 private:
     struct Waveguide
@@ -153,6 +158,7 @@ private:
     Body acousticBody{};
     MeasuredBridge measuredBridge{};
     TwoPortBridge twoPortBridge{};
+    PowerWaveStrings powerStrings10{};
     std::array<float, maxVoices> bridgeReflections09{};
     std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;

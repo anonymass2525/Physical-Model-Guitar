@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
-project(PhysicalModelGuitar VERSION 0.9.0 LANGUAGES C CXX)
+project(PhysicalModelGuitar VERSION 1.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
     add_compile_options(/utf-8)
 endif()
 include(CTest)
-add_library(PMGDSP STATIC DSP/StringEngine.cpp DSP/MeasuredBridge.cpp DSP/TwoPortBridge.cpp)
+add_library(PMGDSP STATIC DSP/StringEngine.cpp DSP/MeasuredBridge.cpp DSP/TwoPortBridge.cpp DSP/PowerWaveStrings.cpp)
 target_include_directories(PMGDSP PUBLIC DSP)
 if(MSVC)
     target_compile_options(PMGDSP PRIVATE /W4)
@@ -27,6 +27,9 @@ if(BUILD_TESTING)
     add_executable(PMGTwoPort09Tests Tests/TwoPortBridgeTests.cpp)
     target_link_libraries(PMGTwoPort09Tests PRIVATE PMGDSP)
     add_test(NAME PMG09_wave_energy_and_2port_scattering COMMAND PMGTwoPort09Tests)
+    add_executable(PMGPowerWave10Tests Tests/PowerWave10Tests.cpp)
+    target_link_libraries(PMGPowerWave10Tests PRIVATE PMGDSP)
+    add_test(NAME PMG10_waveguide_energy_ledger COMMAND PMGPowerWave10Tests)
     add_executable(PMGBridge08Tests Tests/BridgeMobilityTests.cpp)
     target_link_libraries(PMGBridge08Tests PRIVATE PMGDSP)
     add_test(NAME PMG08_passive_mobility_and_coupling COMMAND PMGBridge08Tests)
@@ -45,11 +48,11 @@ if(PMG_BUILD_PLUGIN)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
         COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.twobridge09"
+        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.powerwaves10"
         PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE PmG9
-        PRODUCT_NAME "Physical Model Guitar 0.9"
-        DESCRIPTION "Passive two-location bridge wave scattering and power accounting"
+        PLUGIN_CODE Pm10
+        PRODUCT_NAME "Physical Model Guitar 1.0 Research"
+        DESCRIPTION "Power-normalized travelling velocity-wave strings with passive bridge energy ledger"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
         FORMATS VST3 Standalone VST3_CATEGORIES Instrument)
