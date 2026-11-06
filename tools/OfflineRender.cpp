@@ -50,6 +50,11 @@ int main(int argc,char**argv)
             else if(key=="physics09") c.physics09=val>.5f;
             else if(key=="physics10") c.physics10=val>.5f;
             else if(key=="physics11") c.physics11=val>.5f;
+            else if(key=="physics12") c.physics12=val>.5f;
+            else if(key=="pick12") c.pick12=val>.5f;
+            else if(key=="fret12") c.fret12=val>.5f;
+            else if(key=="axial12") c.axial12=val>.5f;
+            else if(key=="pickup12") c.pickup12=val>.5f;
             else if(key=="bridge-measured08") c.measuredBridge08=val>.5f;
             else if(key=="physics06") c.physics06=val>.5f;
             else if(key=="string") forcedString=int(val);

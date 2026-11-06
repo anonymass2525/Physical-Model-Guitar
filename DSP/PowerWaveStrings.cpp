@@ -57,6 +57,19 @@ void PowerWaveStrings::setPhysics11(bool enabled) noexcept {
     }
     physics11=enabled;
 }
+void PowerWaveStrings::setMechanisms(bool pick,bool fret,bool longitudinal,bool sensor) noexcept {
+    // The instrument can be ablated while sounding: retire disconnected stored
+    // energies through explicit (non-negative) dissipative pathways.
+    if(!pick && enablePick)for(auto& both:waves)for(auto& w:both){
+        contactDissipation11+=w.pickEnergyWave*w.pickEnergyWave;
+        w.pickEnergyWave=0.;w.pickSamples=0;
+    }
+    if(!longitudinal && enableAxial)for(auto& both:waves)for(auto& w:both){
+        axialDissipation11+=w.axialQ*w.axialQ+w.axialP*w.axialP;
+        w.axialQ=w.axialP=0.;
+    }
+    enablePick=pick;enableFret=fret;enableAxial=longitudinal;enableSensor=sensor;
+}
 void PowerWaveStrings::setContactParameters(double hard,double clearance,double pickup) noexcept {
     pickHardness=clip(hard,0.,1.);fretClearance=clip(clearance,0.,1.);
     pickupLocation=clip(pickup,.03,.49);
@@ -114,7 +127,7 @@ bool PowerWaveStrings::strike(int s,int midiNote,double velocity,double pluck) n
             w.queueEnergy+=dt*w.z*x*x;
         }
         externalEnergy+=w.queueEnergy;
-        if(physics11) {
+        if(physics11 && enablePick) {
             // Energy supplied at pick contact by the performer: a compliant
             // pick spring, not a free additive output transient.
             const double pickJ=w.queueEnergy*(.045+.055*(1.-pickHardness));
@@ -142,7 +155,17 @@ PowerWaveStrings::Frame PowerWaveStrings::tick() noexcept {
     }
     // Observe travelling waves without loading them. This is an *idealized*
     // velocity-sensitive magnetic/acoustic readout; pickup back-action is zero.
-    if(physics11) for(int s=0;s<strings;++s){
+    // Acoustic near-field observation at a fixed physical fraction of each
+    // speaking length, separate from the electromagnetic pickup position.
+    // Read-only observations never modify the physical energy ledger.
+    for(int s=0;s<strings;++s)for(int plane=0;plane<planes;++plane){
+        const auto& w=waves[size_t(s)][size_t(plane)];
+        const int n=w.integerDelay, k=std::clamp(int(std::lround(n*.27)),2,n/2);
+        const double a=w.ring[size_t((w.cursor+k)%n)];
+        const double b=w.ring[size_t((w.cursor+n-k)%n)];
+        result.stringTapVelocity+=(plane==0?.82:.18)*(.64*a-.36*b);
+    }
+    if(physics11 && enableSensor) for(int s=0;s<strings;++s){
         const auto& both=waves[size_t(s)];
         for(int p=0;p<planes;++p){
             const auto& w=both[size_t(p)];
@@ -243,7 +266,7 @@ void PowerWaveStrings::applyLocalContacts11() noexcept {
             // Unilateral dissipative fret collisions. Contact position and
             // penetration are low-order waveguide proxies, not yet exact
             // string/fret geometric constraints. Reflection cannot gain energy.
-            for(int k=0;k<3;++k){
+            for(int k=0;k<3 && enableFret;++k){
                 const int ix=(w.cursor+std::clamp(int(n*(.18+.19*k)),2,n-2))%n;
                 const double v=w.ring[size_t(ix)];
                 double& displacement=w.fretDisplacement[size_t(k)];
@@ -269,6 +292,7 @@ void PowerWaveStrings::applyLocalContacts11() noexcept {
         // rotations share stored energy between two transverse components and
         // one axial oscillator. Variable angle depends on excitation amplitude;
         // this is a *reduced-order* nonlinear effect, not a full PDE solver.
+        if(!enableAxial) continue;
         auto& a=both[0];auto& b=both[1];
         const int ia=(a.cursor+std::clamp(int(a.integerDelay*.41),2,a.integerDelay-2))%a.integerDelay;
         const int ib=(b.cursor+std::clamp(int(b.integerDelay*.41),2,b.integerDelay-2))%b.integerDelay;
