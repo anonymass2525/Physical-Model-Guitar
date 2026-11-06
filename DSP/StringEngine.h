@@ -5,6 +5,7 @@
 #include "TwoPortBridge.h"
 #include "PowerWaveStrings.h"
 #include "Observation13.h"
+#include "Observation14.h"
 
 namespace pmg
 {
@@ -57,6 +58,9 @@ struct Controls
     // v1.3 independently selectable, read-only observation operators. Both
     // disabled by default until validated on properly matched recordings.
     bool magnetic13 = false, radiation13 = false;
+    // 1.4 independent transient-aware induction and high-register pressure observation.
+    bool magnetic14 = false, radiation14 = false;
+    float magneticAttack14=.5f, nylonTreble14=.5f;
     PhysicalCalibration calibration{};
 };
 
@@ -181,6 +185,8 @@ private:
     PowerWaveStrings powerStrings10{};
     MagneticPickup13 magneticPickup13{};
     NylonRadiation13 nylonRadiation13{};
+    MagneticPickup14 magneticPickup14{};
+    NylonRadiation14 nylonRadiation14{};
     std::array<float, maxVoices> bridgeReflections09{};
     std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;

@@ -19,6 +19,10 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawPhysics12 = parameters.getRawParameterValue("physics12");
     rawMagnetic13 = parameters.getRawParameterValue("magnetic13");
     rawRadiation13 = parameters.getRawParameterValue("radiation13");
+    rawMagnetic14 = parameters.getRawParameterValue("magnetic14");
+    rawRadiation14 = parameters.getRawParameterValue("radiation14");
+    rawMagneticAttack14 = parameters.getRawParameterValue("magneticAttack14");
+    rawNylonTreble14 = parameters.getRawParameterValue("nylonTreble14");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -82,6 +86,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "1.3 Electric Magnetic Flux / 1.2 Coil A/B", false));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"radiation13", 1},
           "1.3 Nylon Modal Pressure / 1.2 Acoustic A/B", false));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"magnetic14", 1},
+          "1.4 Transient Magnetic / 1.3 A/B", false));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"radiation14", 1},
+          "1.4 Upper Soundboard Radiation / 1.3 A/B", false));
+    l.add(std::make_unique<P>(juce::ParameterID{"magneticAttack14",1},
+          "1.4 Magnetic Transient Detail",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
+    l.add(std::make_unique<P>(juce::ParameterID{"nylonTreble14",1},
+          "1.4 Nylon High-Register Radiation",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -136,6 +148,10 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
         c.physics12 = rawPhysics12->load(std::memory_order_relaxed) > .5f;
     if (rawMagnetic13 != nullptr) c.magnetic13 = rawMagnetic13->load(std::memory_order_relaxed) > .5f;
     if (rawRadiation13 != nullptr) c.radiation13 = rawRadiation13->load(std::memory_order_relaxed) > .5f;
+    if (rawMagnetic14 != nullptr) c.magnetic14 = rawMagnetic14->load(std::memory_order_relaxed) > .5f;
+    if (rawRadiation14 != nullptr) c.radiation14 = rawRadiation14->load(std::memory_order_relaxed) > .5f;
+    if (rawMagneticAttack14 != nullptr) c.magneticAttack14 = rawMagneticAttack14->load(std::memory_order_relaxed);
+    if (rawNylonTreble14 != nullptr) c.nylonTreble14 = rawNylonTreble14->load(std::memory_order_relaxed);
     if (rawMeasuredBridge08 != nullptr)
         c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
@@ -215,7 +231,7 @@ juce::AudioProcessorEditor *PhysicalModelGuitarAudioProcessor::createEditor()
 void PhysicalModelGuitarAudioProcessor::getStateInformation(juce::MemoryBlock &data)
 {
     auto s = parameters.copyState();
-    s.setProperty("schema", 10, nullptr);
+    s.setProperty("schema", 14, nullptr);
     s.setProperty("editorWidth", editorWidth.load(), nullptr);
     s.setProperty("editorHeight", editorHeight.load(), nullptr);
     auto xml = s.createXml();
@@ -246,7 +262,7 @@ void PhysicalModelGuitarAudioProcessor::setStateInformation(const void *data, in
         }
     }
     editorWidth.store(juce::jlimit(900, 1800, int(state.getProperty("editorWidth", 1040))));
-    editorHeight.store(juce::jlimit(675, 1350, int(state.getProperty("editorHeight", 780))));
+    editorHeight.store(juce::jlimit(725, 1450, int(state.getProperty("editorHeight", 840))));
     parameters.replaceState(state);
 }
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()

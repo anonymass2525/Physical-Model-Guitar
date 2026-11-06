@@ -478,6 +478,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     powerStrings10.prepare(rate,int(model));
     magneticPickup13.prepare(rate);
     nylonRadiation13.prepare(rate);
+    magneticPickup14.prepare(rate);
+    nylonRadiation14.prepare(rate);
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
@@ -615,7 +617,13 @@ StereoFrame StringEngine::nextFrame() noexcept
             // This only observes unified waveguide state; no added string force.
             const float sensed13=float(magneticPickup13.tick(powerStrings10,
                 controls.pickup, controls.pickupAperture, controls.character));
-            if(controls.magnetic13){
+            const float sensed14=float(magneticPickup14.tick(powerStrings10,
+                controls.pickup,controls.pickupAperture,controls.character,controls.magneticAttack14));
+            if(controls.magnetic14){
+                left=10.6f*sensed14+.14f*bodyAmount*unifiedSensorLowL;
+                right=10.6f*sensed14+.14f*bodyAmount*unifiedSensorLowR;
+            }
+            else if(controls.magnetic13){
                 // Absolute conversion from velocity to volts is unmeasured.
                 // Fixed gain matches the rough reference-model RMS range,
                 // not the harmonic envelope or a particular commercial guitar.
@@ -635,7 +643,13 @@ StereoFrame StringEngine::nextFrame() noexcept
                 // independently measured/read, never injected into the bridge.
                 const auto sound13=nylonRadiation13.tick(powerStrings10,
                     micL,micR,bodyAmount);
-                if(controls.radiation13){
+                const auto sound14=nylonRadiation14.tick(powerStrings10,micL,micR,
+                    bodyAmount,controls.nylonTreble14);
+                if(controls.radiation14){
+                    left=scale*.51f*float(sound14.left);
+                    right=scale*.51f*float(sound14.right);
+                }
+                else if(controls.radiation13){
                     left=scale*.59f*float(sound13.left);
                     right=scale*.59f*float(sound13.right);
                 }
