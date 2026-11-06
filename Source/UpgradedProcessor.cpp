@@ -17,6 +17,8 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawPhysics10 = parameters.getRawParameterValue("physics10");
     rawPhysics11 = parameters.getRawParameterValue("physics11");
     rawPhysics12 = parameters.getRawParameterValue("physics12");
+    rawMagnetic13 = parameters.getRawParameterValue("magnetic13");
+    rawRadiation13 = parameters.getRawParameterValue("radiation13");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -76,6 +78,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "Physics 1.1 Integrated Pick/Fret/Longitudinal/Pickup A/B", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"physics12", 1},
           "Physics 1.2 Unified Wave / 1.1 Hybrid A/B", false));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"magnetic13", 1},
+          "1.3 Electric Magnetic Flux / 1.2 Coil A/B", false));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"radiation13", 1},
+          "1.3 Nylon Modal Pressure / 1.2 Acoustic A/B", false));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -128,6 +134,8 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
         c.physics11 = rawPhysics11->load(std::memory_order_relaxed) > .5f;
     if (rawPhysics12 != nullptr)
         c.physics12 = rawPhysics12->load(std::memory_order_relaxed) > .5f;
+    if (rawMagnetic13 != nullptr) c.magnetic13 = rawMagnetic13->load(std::memory_order_relaxed) > .5f;
+    if (rawRadiation13 != nullptr) c.radiation13 = rawRadiation13->load(std::memory_order_relaxed) > .5f;
     if (rawMeasuredBridge08 != nullptr)
         c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)

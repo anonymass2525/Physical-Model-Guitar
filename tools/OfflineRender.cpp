@@ -55,6 +55,8 @@ int main(int argc,char**argv)
             else if(key=="fret12") c.fret12=val>.5f;
             else if(key=="axial12") c.axial12=val>.5f;
             else if(key=="pickup12") c.pickup12=val>.5f;
+            else if(key=="magnetic13") c.magnetic13=val>.5f;
+            else if(key=="radiation13") c.radiation13=val>.5f;
             else if(key=="bridge-measured08") c.measuredBridge08=val>.5f;
             else if(key=="physics06") c.physics06=val>.5f;
             else if(key=="string") forcedString=int(val);
@@ -87,6 +89,8 @@ int main(int argc,char**argv)
             else if(key=="body") c.body=std::clamp(val,0.f,1.f);
             else if(key=="pluck") c.pluck=std::clamp(val,.03f,.49f);
             else if(key=="pickup") c.pickup=std::clamp(val,.03f,.49f);
+            else if(key=="pickup-aperture") c.pickupAperture=std::clamp(val,0.f,1.f);
+            else if(key=="character") c.character=std::clamp(val,0.f,1.f);
             else return 3;
         }
         if(measured) pmg::applyHeldoutCandidates(pmg::Model(model),c.calibration);

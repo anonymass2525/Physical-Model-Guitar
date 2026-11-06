@@ -325,3 +325,23 @@ double PowerWaveStrings::stringLength(int s) const noexcept {
     return s>=0&&s<strings?waves[size_t(s)][0].stringLength:0.;
 }
 } // namespace pmg
+
+namespace pmg {
+double PowerWaveStrings::sampleTransverseVelocity(int stringIndex,int plane,double fraction) const noexcept {
+    if(stringIndex<0||stringIndex>=strings||plane<0||plane>=planes)return 0.;
+    const auto& w=waves[size_t(stringIndex)][size_t(plane)];
+    const int n=w.integerDelay;
+    if(n<4)return 0.;
+    fraction=std::clamp(std::isfinite(fraction)?fraction:.15,.003,.497);
+    const double sampleOffset=fraction*n;
+    const int lo=std::clamp(int(sampleOffset),1,n/2-1);
+    const int hi=std::min(n/2,lo+1);
+    const double frac=sampleOffset-lo;
+    const auto at=[&](int off){
+        const double forward=w.ring[size_t((w.cursor+off)%n)];
+        const double backward=w.ring[size_t((w.cursor+n-off)%n)];
+        return forward-backward;
+    };
+    return (1.-frac)*at(lo)+frac*at(hi);
+}
+}

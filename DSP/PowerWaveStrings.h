@@ -38,6 +38,8 @@ public:
     bool sane() const noexcept;
     double stringImpedance(int s) const noexcept;
     double stringLength(int s) const noexcept;
+    // Read-only velocity probe at a fractional speaking-length position.
+    double sampleTransverseVelocity(int stringIndex,int plane,double fraction) const noexcept;
 private:
     struct Wave {
         std::array<double,maxDelay> ring{};

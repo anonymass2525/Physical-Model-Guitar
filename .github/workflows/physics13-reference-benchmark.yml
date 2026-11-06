@@ -1,0 +1,33 @@
+name: PMG v1.3 Independent Electric/Nylon Observation Benchmark
+on:
+  push:
+    branches:
+      - research/independent-observers-v13
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference-observers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy soundfile
+      - name: Build DSP and test isolation and energy invariance
+        run: |
+          cmake -S . -B build-ref -DCMAKE_BUILD_TYPE=Release -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-ref --parallel 2
+          ctest --test-dir build-ref --output-on-failure
+      - name: Compare v1.2 and v1.3 on public reference notes
+        run: python tools/Physics13ReferenceBenchmark.py --render build-ref/PMGOfflineRender --out feature-results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PMG13-Independent-Observer-Reference-Scores
+          path: |
+            feature-results/physics13_reference_scores.json
+            feature-results/PHYSICS13_REFERENCE_SUMMARY.md
+          retention-days: 90
+          if-no-files-found: error

@@ -4,6 +4,7 @@
 #include "MeasuredBridge.h"
 #include "TwoPortBridge.h"
 #include "PowerWaveStrings.h"
+#include "Observation13.h"
 
 namespace pmg
 {
@@ -53,6 +54,9 @@ struct Controls
     // Legacy dry engine is completely bypassed in the unified branch.
     bool physics12 = false;
     bool pick12 = true, fret12 = true, axial12 = true, pickup12 = true;
+    // v1.3 independently selectable, read-only observation operators. Both
+    // disabled by default until validated on properly matched recordings.
+    bool magnetic13 = false, radiation13 = false;
     PhysicalCalibration calibration{};
 };
 
@@ -175,6 +179,8 @@ private:
     MeasuredBridge measuredBridge{};
     TwoPortBridge twoPortBridge{};
     PowerWaveStrings powerStrings10{};
+    MagneticPickup13 magneticPickup13{};
+    NylonRadiation13 nylonRadiation13{};
     std::array<float, maxVoices> bridgeReflections09{};
     std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;
