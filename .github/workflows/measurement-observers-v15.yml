@@ -1,0 +1,30 @@
+name: PMG 1.5 - Fit Published Complex Observer Measurements
+on:
+  push:
+    branches: [research/measured-observers-v15]
+    paths:
+      - 'tools/GenerateMeasuredObserver15.py'
+      - '.github/workflows/measurement-observers-v15.yml'
+  workflow_dispatch:
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy
+      - name: Fit electrical load and nearfield 2x2 complex transfer
+        run: |
+          python tools/GenerateMeasuredObserver15.py --cache research/qualified_selected_impulses.mat \
+            --header generated/DSP/MeasuredObserver15Coeffs.h \
+            --report generated/observer15_measurement_fit.json
+      - name: Save derived coefficients and numeric QA only, not recordings
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG15-Published-Complex-Measurements-Fit
+          path: generated/
+          retention-days: 90
+          if-no-files-found: error

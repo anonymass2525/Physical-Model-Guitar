@@ -480,6 +480,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     nylonRadiation13.prepare(rate);
     magneticPickup14.prepare(rate);
     nylonRadiation14.prepare(rate);
+    measuredMagnetic15.prepare(rate);
+    measuredNylon15.prepare(rate);
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
@@ -619,7 +621,13 @@ StereoFrame StringEngine::nextFrame() noexcept
                 controls.pickup, controls.pickupAperture, controls.character));
             const float sensed14=float(magneticPickup14.tick(powerStrings10,
                 controls.pickup,controls.pickupAperture,controls.character,controls.magneticAttack14));
-            if(controls.magnetic14){
+            const float sensed15=float(measuredMagnetic15.tick(powerStrings10,
+                controls.pickup,controls.pickupAperture));
+            if(controls.magnetic15){
+                left=10.9f*sensed15 + .14f*bodyAmount*unifiedSensorLowL;
+                right=10.9f*sensed15 + .14f*bodyAmount*unifiedSensorLowR;
+            }
+            else if(controls.magnetic14){
                 left=10.6f*sensed14+.14f*bodyAmount*unifiedSensorLowL;
                 right=10.6f*sensed14+.14f*bodyAmount*unifiedSensorLowR;
             }
@@ -645,7 +653,16 @@ StereoFrame StringEngine::nextFrame() noexcept
                     micL,micR,bodyAmount);
                 const auto sound14=nylonRadiation14.tick(powerStrings10,micL,micR,
                     bodyAmount,controls.nylonTreble14);
-                if(controls.radiation14){
+                const auto sound15=measuredNylon15.tick(powerStrings10,micL,micR,
+                    bodyAmount,controls.directPhase15);
+                if(controls.radiation15){
+                    // Measured 2x2 near-field transfer, model-output gain chosen
+                    // to match median synthetic 1.4 note RMS (NOT absolute Pa).
+                    // The transfer itself still has ~54-80% heldout-bin error.
+                    left=scale*.68f*float(sound15.left);
+                    right=scale*.68f*float(sound15.right);
+                }
+                else if(controls.radiation14){
                     left=scale*.51f*float(sound14.left);
                     right=scale*.51f*float(sound14.right);
                 }
