@@ -1,0 +1,31 @@
+name: PMG 1.7 Coherent Radiation - External Reference Notes
+on:
+  push:
+    branches: [research/coherent-direct-body-v17]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy soundfile
+      - name: Verify synthetic capture reconstruction and rejection gate
+        run: python tools/TestJointRadiation17.py
+      - name: Build DSP and run all tests
+        run: |
+          cmake -S . -B build-qa -DPMG_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-qa --parallel 4
+          ctest --test-dir build-qa --output-on-failure --parallel 4
+      - name: Compare 1.6 vs 1.7 using independent reference notes
+        run: python tools/Physics17ReferenceBenchmark.py --render "$PWD/build-qa/PMGOfflineRender" --out benchmark17
+      - name: Upload measurements and scores without source audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: PMG17-Reference-Features-and-Synthetic-Validation
+          path: benchmark17/
+          retention-days: 90
+          if-no-files-found: error

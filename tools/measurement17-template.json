@@ -1,0 +1,13 @@
+{
+  "schema": "PMG17-four-channel-synchronized-velocity-and-pressure-v1",
+  "sample_rate": 48000,
+  "channel_order": ["string_velocity_reference", "bridge_velocity_reference", "mic_left_pressure", "mic_right_pressure"],
+  "guitar_id": "REPLACE_WITH_INSTRUMENT_SERIAL_OR_ID",
+  "mic_geometry_id": "REPLACE_WITH_MEASURED_MIC_DISTANCES_AND_ANGLES",
+  "takes": [
+    {"file":"take01.wav", "guitar_id":"REPLACE_WITH_INSTRUMENT_SERIAL_OR_ID", "mic_geometry_id":"REPLACE_WITH_MEASURED_MIC_DISTANCES_AND_ANGLES", "simultaneous_capture":true},
+    {"file":"take02.wav", "guitar_id":"REPLACE_WITH_INSTRUMENT_SERIAL_OR_ID", "mic_geometry_id":"REPLACE_WITH_MEASURED_MIC_DISTANCES_AND_ANGLES", "simultaneous_capture":true},
+    {"file":"take03.wav", "guitar_id":"REPLACE_WITH_INSTRUMENT_SERIAL_OR_ID", "mic_geometry_id":"REPLACE_WITH_MEASURED_MIC_DISTANCES_AND_ANGLES", "simultaneous_capture":true},
+    {"file":"holdout04.wav", "guitar_id":"REPLACE_WITH_INSTRUMENT_SERIAL_OR_ID", "mic_geometry_id":"REPLACE_WITH_MEASURED_MIC_DISTANCES_AND_ANGLES", "simultaneous_capture":true}
+  ]
+}

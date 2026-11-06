@@ -380,6 +380,12 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
                 [this](float v){radiation16On=v>.5f;radiation16.selected=radiation16On;radiation16.repaint();}, &p.undo),
           lateBody16Attachment(*p.parameters.getParameter("lateBody16"),
                 [this](float v){lateBody16Value=v;lateBody16.setCaption("1.6 TAIL: "+juce::String(v,2));lateBody16.repaint();}, &p.undo),
+          radiation17Attachment(*p.parameters.getParameter("radiation17"),
+                [this](float v){radiation17On=v>.5f;radiation17.selected=radiation17On;radiation17.repaint();}, &p.undo),
+          phase17Attachment(*p.parameters.getParameter("directBodyPhase17"),
+                [this](float v){phase17Value=v;phase17.setCaption("1.7 PHASE: "+juce::String(v,2));phase17.repaint();},&p.undo),
+          mix17Attachment(*p.parameters.getParameter("directBodyMix17"),
+                [this](float v){mix17Value=v;mix17.setCaption("1.7 DIRECT: "+juce::String(v,2));mix17.repaint();},&p.undo),
           radiation14Attachment(*p.parameters.getParameter("radiation14"),
                 [this](float v){radiation14On=v>.5f;radiation14.selected=radiation14On;radiation14.repaint();}, &p.undo),
           measured08Attachment(*p.parameters.getParameter("measuredBridge08"),
@@ -443,6 +449,17 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
               const float v=lateBody16Value<.25f?.5f:lateBody16Value<.75f?1.f:0.f;
               lateBody16Attachment.setValueAsCompleteGesture(v);
           }),
+          radiation17("1.7 DIRECT/BODY PHASE: A/B",[this]{
+              radiation17Attachment.setValueAsCompleteGesture(radiation17On?0.f:1.f);
+          }),
+          phase17("1.7 RELATIVE DELAY",[this]{
+              const float v=phase17Value<.20f?.5f:phase17Value<.60f?.9f:.1f;
+              phase17Attachment.setValueAsCompleteGesture(v);
+          }),
+          mix17("1.7 DIRECT MIX",[this]{
+              const float v=mix17Value<.25f?.5f:mix17Value<.75f?1.f:0.f;
+              mix17Attachment.setValueAsCompleteGesture(v);
+          }),
           measured08("ZENODO CLASSICAL BRIDGE: A/B", [this] {
               measured08Attachment.setValueAsCompleteGesture(measured08On ? 0.f : 1.f);
           })
@@ -492,6 +509,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         addAndMakeVisible(directPhase15);
         addAndMakeVisible(radiation16);
         addAndMakeVisible(lateBody16);
+        addAndMakeVisible(radiation17);
+        addAndMakeVisible(phase17);
+        addAndMakeVisible(mix17);
         modelAttachment.sendInitialUpdate();
         calibrationAttachment.sendInitialUpdate();
         physicsAttachment.sendInitialUpdate();
@@ -511,6 +531,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         directPhase15Attachment.sendInitialUpdate();
         radiation16Attachment.sendInitialUpdate();
         lateBody16Attachment.sendInitialUpdate();
+        radiation17Attachment.sendInitialUpdate();
+        phase17Attachment.sendInitialUpdate();
+        mix17Attachment.sendInitialUpdate();
     }
     void refresh()
     {
@@ -543,6 +566,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         directPhase15.setEnabled(chosen == 3);
         radiation16.setEnabled(chosen == 3);
         lateBody16.setEnabled(chosen == 3);
+        radiation17.setEnabled(chosen == 3);
+        phase17.setEnabled(chosen == 3);
+        mix17.setEnabled(chosen == 3);
         repaint();
     }
     void paint(juce::Graphics &g) override
@@ -614,6 +640,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         directPhase15.setBounds(697, 767, 260, 26);
         radiation16.setBounds(354, 798, 313, 26);
         lateBody16.setBounds(697, 798, 260, 26);
+        radiation17.setBounds(27, 830, 313, 26);
+        phase17.setBounds(354, 830, 313, 26);
+        mix17.setBounds(697, 830, 260, 26);
     }
     bool fits() const
     {
@@ -627,11 +656,11 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
   private:
     PhysicalModelGuitarAudioProcessor &processor;
     int chosen = 0;
-    float directPhase15Value=.5f,lateBody16Value=.5f;
-    bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, physics12On = false, measured08On = false, magnetic13On = false, radiation13On = false, magnetic14On = false, radiation14On = false, magnetic15On = false, radiation15On = false, radiation16On = false;
-    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment, magnetic13Attachment, radiation13Attachment, magnetic14Attachment, radiation14Attachment, magnetic15Attachment, radiation15Attachment, directPhase15Attachment, radiation16Attachment, lateBody16Attachment;
+    float directPhase15Value=.5f,lateBody16Value=.5f,phase17Value=.5f,mix17Value=.5f;
+    bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, physics12On = false, measured08On = false, magnetic13On = false, radiation13On = false, magnetic14On = false, radiation14On = false, magnetic15On = false, radiation15On = false, radiation16On = false,radiation17On = false;
+    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment, magnetic13Attachment, radiation13Attachment, magnetic14Attachment, radiation14Attachment, magnetic15Attachment, radiation15Attachment, directPhase15Attachment, radiation16Attachment, lateBody16Attachment, radiation17Attachment, phase17Attachment, mix17Attachment;
     std::array<std::unique_ptr<Action>, 4> models;
-    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08, magnetic13, radiation13, magnetic14, radiation14, magnetic15, radiation15, directPhase15, radiation16, lateBody16;
+    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08, magnetic13, radiation13, magnetic14, radiation14, magnetic15, radiation15, directPhase15, radiation16, lateBody16, radiation17, phase17, mix17;
 };
 PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor(
     PhysicalModelGuitarAudioProcessor &p)

@@ -1,5 +1,6 @@
-# Version 1.5 Research — measured observers (not yet accepted as best tone)
-See `README_15_JA.md` for measured calibration, quality gates and limitations.
+# Physical Model Guitar 1.7 Research
+
+詳細: [1.7 同期収録・同定研究](README_17_JA.md)
 
 # Physical Model Guitar 1.3 Research
 
