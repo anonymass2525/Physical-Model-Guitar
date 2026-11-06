@@ -60,6 +60,7 @@ class Action final : public juce::Component
                                                            action();
                                                    }));
     }
+    void setCaption(const juce::String& name){ caption=name; repaint(); }
     bool selected = false;
     juce::Colour colour = accent(0);
 
@@ -369,6 +370,12 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
                                   radiation13.repaint(); }, &p.undo),
           magnetic14Attachment(*p.parameters.getParameter("magnetic14"),
                 [this](float v){magnetic14On=v>.5f;magnetic14.selected=magnetic14On;magnetic14.repaint();}, &p.undo),
+          magnetic15Attachment(*p.parameters.getParameter("magnetic15"),
+                [this](float v){magnetic15On=v>.5f;magnetic15.selected=magnetic15On;magnetic15.repaint();}, &p.undo),
+          directPhase15Attachment(*p.parameters.getParameter("directPhase15"),
+                [this](float v){directPhase15Value=v;directPhase15.setCaption("1.5 AIR DELAY: "+juce::String(v,2));directPhase15.repaint();},&p.undo),
+          radiation15Attachment(*p.parameters.getParameter("radiation15"),
+                [this](float v){radiation15On=v>.5f;radiation15.selected=radiation15On;radiation15.repaint();}, &p.undo),
           radiation14Attachment(*p.parameters.getParameter("radiation14"),
                 [this](float v){radiation14On=v>.5f;radiation14.selected=radiation14On;radiation14.repaint();}, &p.undo),
           measured08Attachment(*p.parameters.getParameter("measuredBridge08"),
@@ -415,6 +422,16 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
           radiation14("1.4 NYLON HIGH BAND / 1.3: A/B", [this] {
               radiation14Attachment.setValueAsCompleteGesture(radiation14On?0.f:1.f);
           }),
+          magnetic15("1.5 MEASURED COIL LOAD: A/B",[this]{
+              magnetic15Attachment.setValueAsCompleteGesture(magnetic15On?0.f:1.f);
+          }),
+          directPhase15("1.5 AIR PATH DELAY",[this]{
+              const float v=directPhase15Value<.25f?.5f:directPhase15Value<.75f?1.f:0.f;
+              directPhase15Attachment.setValueAsCompleteGesture(v);
+          }),
+          radiation15("1.5 MEASURED NYLON PHASE: A/B",[this]{
+              radiation15Attachment.setValueAsCompleteGesture(radiation15On?0.f:1.f);
+          }),
           measured08("ZENODO CLASSICAL BRIDGE: A/B", [this] {
               measured08Attachment.setValueAsCompleteGesture(measured08On ? 0.f : 1.f);
           })
@@ -459,6 +476,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         addAndMakeVisible(radiation13);
         addAndMakeVisible(magnetic14);
         addAndMakeVisible(radiation14);
+        addAndMakeVisible(magnetic15);
+        addAndMakeVisible(radiation15);
+        addAndMakeVisible(directPhase15);
         modelAttachment.sendInitialUpdate();
         calibrationAttachment.sendInitialUpdate();
         physicsAttachment.sendInitialUpdate();
@@ -473,6 +493,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         radiation13Attachment.sendInitialUpdate();
         magnetic14Attachment.sendInitialUpdate();
         radiation14Attachment.sendInitialUpdate();
+        magnetic15Attachment.sendInitialUpdate();
+        radiation15Attachment.sendInitialUpdate();
+        directPhase15Attachment.sendInitialUpdate();
     }
     void refresh()
     {
@@ -500,13 +523,16 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         radiation13.setEnabled(chosen == 3);
         magnetic14.setEnabled(chosen == 1);
         radiation14.setEnabled(chosen == 3);
+        magnetic15.setEnabled(chosen == 1);
+        radiation15.setEnabled(chosen == 3);
+        directPhase15.setEnabled(chosen == 3);
         repaint();
     }
     void paint(juce::Graphics &g) override
     {
         g.fillAll(background);
-        text(g, "PHYSICAL MODEL GUITAR 1.4", {24, 16, 620, 34}, 25, ink);
-        text(g, "MAGNETIC ATTACK & PARTIALS / NYLON HIGH-FREQUENCY RADIATION / RESEARCH", {25, 52, 620, 17}, 11, muted);
+        text(g, "PHYSICAL MODEL GUITAR 1.5", {24, 16, 620, 34}, 25, ink);
+        text(g, "MEASURED ELECTRICAL LOAD / PHASE-RESOLVED NYLON NEARFIELD RADIATION", {25, 52, 620, 17}, 11, muted);
         for (int group = 0; group < 4; ++group)
         {
             const int x = 20 + group * 245;
@@ -534,11 +560,11 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
              11, muted);
         text(g, calibratedOn ? "CALIBRATION: ON" : "CALIBRATION: OFF", {697, 143, 135, 14}, 10, calibratedOn ? accent(chosen) : muted);
         text(g, physics07On ? "PHYSICS 0.7: ON" : "PHYSICS 0.6: OFF", {826, 143, 140, 14}, 10, physics07On ? accent(chosen) : muted);
-        text(g, "Drag vertically / Shift: fine / Wheel or arrows / Double-click: reset", {24, 770, 645, 18},
+        text(g, "Drag vertically / Shift: fine / Wheel or arrows / Double-click: reset", {24, 809, 645, 18},
              11, muted);
         text(g,
-             "1.4: transient induction / frequency-split nylon radiation; 1.2 unified mode required.",
-             {24, 788, 950, 15}, 10, muted);
+             "1.5: measured complex load & near-field pressure; 1.2 unified mode required.",
+             {24, 826, 950, 15}, 10, muted);
     }
     void resized() override
     {
@@ -566,6 +592,9 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         radiation13.setBounds(354, 702, 313, 26);
         magnetic14.setBounds(27, 737, 313, 26);
         radiation14.setBounds(354, 737, 313, 26);
+        magnetic15.setBounds(27, 767, 313, 26);
+        radiation15.setBounds(354, 767, 313, 26);
+        directPhase15.setBounds(697, 767, 260, 26);
     }
     bool fits() const
     {
@@ -579,10 +608,11 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
   private:
     PhysicalModelGuitarAudioProcessor &processor;
     int chosen = 0;
-    bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, physics12On = false, measured08On = false, magnetic13On = false, radiation13On = false, magnetic14On = false, radiation14On = false;
-    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment, magnetic13Attachment, radiation13Attachment, magnetic14Attachment, radiation14Attachment;
+    float directPhase15Value=.5f;
+    bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, physics12On = false, measured08On = false, magnetic13On = false, radiation13On = false, magnetic14On = false, radiation14On = false, magnetic15On = false, radiation15On = false;
+    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment, magnetic13Attachment, radiation13Attachment, magnetic14Attachment, radiation14Attachment, magnetic15Attachment, radiation15Attachment, directPhase15Attachment;
     std::array<std::unique_ptr<Action>, 4> models;
-    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08, magnetic13, radiation13, magnetic14, radiation14;
+    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08, magnetic13, radiation13, magnetic14, radiation14, magnetic15, radiation15, directPhase15;
 };
 PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor(
     PhysicalModelGuitarAudioProcessor &p)
@@ -591,8 +621,8 @@ PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor
     canvas = std::make_unique<Canvas>(p);
     addAndMakeVisible(*canvas);
     setResizable(true, true);
-    setResizeLimits(900, 725, 1800, 1449);
-    getConstrainer()->setFixedAspectRatio(1000. / 805.);
+    setResizeLimits(900, 765, 1800, 1530);
+    getConstrainer()->setFixedAspectRatio(1000. / 850.);
     setSize(p.editorWidth.load(), p.editorHeight.load());
     startTimerHz(24);
 }
@@ -608,8 +638,8 @@ void PhysicalModelGuitarAudioProcessorEditor::resized()
 {
     if (canvas)
     {
-        const float scale = std::min(float(getWidth()) / 1000.f, float(getHeight()) / 805.f);
-        canvas->setBounds(0, 0, 1000, 805);
+        const float scale = std::min(float(getWidth()) / 1000.f, float(getHeight()) / 850.f);
+        canvas->setBounds(0, 0, 1000, 850);
         canvas->setTransform(juce::AffineTransform::scale(scale));
         processor.editorWidth.store(getWidth());
         processor.editorHeight.store(getHeight());

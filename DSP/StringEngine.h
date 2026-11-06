@@ -6,6 +6,7 @@
 #include "PowerWaveStrings.h"
 #include "Observation13.h"
 #include "Observation14.h"
+#include "Observation15.h"
 
 namespace pmg
 {
@@ -61,6 +62,8 @@ struct Controls
     // 1.4 independent transient-aware induction and high-register pressure observation.
     bool magnetic14 = false, radiation14 = false;
     float magneticAttack14=.5f, nylonTreble14=.5f;
+    bool magnetic15=false, radiation15=false; // measured electrical load and nearfield microphone response, opt-in
+    float directPhase15=.5f; // direct string-to-body relative propagation delay, unmeasured
     PhysicalCalibration calibration{};
 };
 
@@ -187,6 +190,8 @@ private:
     NylonRadiation13 nylonRadiation13{};
     MagneticPickup14 magneticPickup14{};
     NylonRadiation14 nylonRadiation14{};
+    MeasuredMagnetic15 measuredMagnetic15{};
+    MeasuredNylon15 measuredNylon15{};
     std::array<float, maxVoices> bridgeReflections09{};
     std::array<double,maxVoices> stringPortZ09{};
     float bridgePortFeedback = 0;

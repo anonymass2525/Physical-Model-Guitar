@@ -23,6 +23,9 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawRadiation14 = parameters.getRawParameterValue("radiation14");
     rawMagneticAttack14 = parameters.getRawParameterValue("magneticAttack14");
     rawNylonTreble14 = parameters.getRawParameterValue("nylonTreble14");
+    rawMagnetic15 = parameters.getRawParameterValue("magnetic15");
+    rawRadiation15 = parameters.getRawParameterValue("radiation15");
+    rawDirectPhase15 = parameters.getRawParameterValue("directPhase15");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -94,6 +97,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "1.4 Magnetic Transient Detail",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
     l.add(std::make_unique<P>(juce::ParameterID{"nylonTreble14",1},
           "1.4 Nylon High-Register Radiation",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"magnetic15", 1},
+          "1.5 Measured Coil Electrical Load (A/B)", false));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"radiation15", 1},
+          "1.5 Measured Nylon Nearfield Complex Radiation (A/B)", false));
+    l.add(std::make_unique<P>(juce::ParameterID{"directPhase15",1},
+          "1.5 String/Body Air Delay Hypothesis",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -152,6 +161,9 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
     if (rawRadiation14 != nullptr) c.radiation14 = rawRadiation14->load(std::memory_order_relaxed) > .5f;
     if (rawMagneticAttack14 != nullptr) c.magneticAttack14 = rawMagneticAttack14->load(std::memory_order_relaxed);
     if (rawNylonTreble14 != nullptr) c.nylonTreble14 = rawNylonTreble14->load(std::memory_order_relaxed);
+    if (rawMagnetic15 != nullptr) c.magnetic15 = rawMagnetic15->load(std::memory_order_relaxed) > .5f;
+    if (rawRadiation15 != nullptr) c.radiation15 = rawRadiation15->load(std::memory_order_relaxed) > .5f;
+    if (rawDirectPhase15 != nullptr) c.directPhase15 = rawDirectPhase15->load(std::memory_order_relaxed);
     if (rawMeasuredBridge08 != nullptr)
         c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
