@@ -25,22 +25,22 @@ def main(args):
             if take['kind'] not in ('electric','nylon','steel'):continue
             kind=take['kind']
             model={'electric':1,'steel':2,'nylon':3}[kind]
-            reference=features(take['path'],take['note'])
-            row={'model':kind,'midi':take['note'],'string':take['string'],
+            reference=features(take['path'],take['midi'])
+            row={'model':kind,'midi':take['midi'],'string':take['string'],
                  'fret':take['fret'],'cases':{}}
             for case in ('v12','magnetic13','radiation13','both13'):
                 path=root/'render.wav'
                 mag=int(case in ('magnetic13','both13'))
                 rad=int(case in ('radiation13','both13'))
-                cmd=[str(args.render),'--single',str(model),str(take['note']),'.65',str(path),
+                cmd=[str(args.render),'--single',str(model),str(take['midi']),'.65',str(path),
                     f'--string={take["string"]}','--physics12=1',
                     f'--magnetic13={mag}',f'--radiation13={rad}',
                     '--bridge-measured08=0']
                 subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
-                score,parts=distance(reference,features(path,take['note']))
+                score,parts=distance(reference,features(path,take['midi']))
                 row['cases'][case]={'score':float(score),'parts':parts,'rms':rms(path)}
             rows.append(row)
-            print('BENCH',kind,take['note'],f'{row["cases"]["v12"]["score"]:.4f}',
+            print('BENCH',kind,take['midi'],f'{row["cases"]["v12"]["score"]:.4f}',
                   '->',f'{row["cases"]["both13"]["score"]:.4f}',flush=True)
     summary={}
     for kind in ('electric','nylon','steel'):
