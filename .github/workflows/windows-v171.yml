@@ -30,7 +30,7 @@ jobs:
           }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe unavailable" }
           New-Item -ItemType Directory -Force dist | Out-Null
-          & $iscc "/DRepoRoot=$((Get-Location).Path)" "/DBuildRoot=$((Get-Location).Path)\build-win" "/DOutputRoot=$((Get-Location).Path)\dist" "Installer\PMG17.iss"
+          & $iscc "/DRepoRoot=$((Get-Location).Path)" "/DBuildRoot=$((Get-Location).Path)\build-win" "/DOutputRoot=$((Get-Location).Path)\dist" "Installer\PMG171.iss"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path "dist\PhysicalModelGuitar-1.7.1-Diagnostic-Windows-x64-Setup.exe")) { throw "EXE installer missing" }
       - name: Upload Windows EXE installer
