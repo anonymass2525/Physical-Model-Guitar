@@ -25,6 +25,8 @@ void PowerWaveStrings::prepare(double sr,int model) noexcept {
     guitarModel=std::clamp(model,0,3);
     externalEnergy=lostToPropagation=mutedEnergy=maxResidual=0.;
     contactDissipation11=axialDissipation11=0.; collisions11=0;
+    diagnosticBridgeConnected=true;
+    diagnosticBridgeAbsorbed=0.;
     auto modes=MeasuredBridge::fallbackGuitar(guitarModel);
     // Explicit physical mass ASSUMPTIONS, not yet measured modal masses.
     // Compared with v0.9's normalized 20-200 unit inertias these approximate
@@ -45,6 +47,18 @@ void PowerWaveStrings::prepare(double sr,int model) noexcept {
         }
     }
     setDecay(decaySec);
+}
+void PowerWaveStrings::setDiagnosticBridgeConnected(bool enabled) noexcept {
+    if (diagnosticBridgeConnected == enabled) return;
+    // Absorb all old bridge modal energy on a boundary topology change.
+    // Without this ledger transfer, changing A/B could resurrect a tail
+    // or incorrectly appear to create/destroy energy.
+    for (auto& bridge : bridges) {
+        diagnosticBridgeAbsorbed += std::max(0., bridge.storedEnergy())
+                                  + std::max(0., bridge.dissipatedEnergy());
+        bridge.reset();
+    }
+    diagnosticBridgeConnected = enabled;
 }
 void PowerWaveStrings::setPhysics11(bool enabled) noexcept {
     if(physics11==enabled)return;
@@ -179,7 +193,14 @@ PowerWaveStrings::Frame PowerWaveStrings::tick() noexcept {
         }
     }
     std::array<TwoPortBridge::Frame,planes> frames{};
-    for(int p=0;p<planes;++p)frames[size_t(p)]=bridges[size_t(p)].tick(incident[size_t(p)],z);
+    for(int p=0;p<planes;++p) {
+        if (diagnosticBridgeConnected)
+            frames[size_t(p)] = bridges[size_t(p)].tick(incident[size_t(p)],z);
+        else
+            for(int s=0;s<strings;++s)
+                frames[size_t(p)].outgoing[size_t(s)]=-incident[size_t(p)][size_t(s)];
+                // Rigid, passive reflection: endpoint velocity and radiation = 0.
+    }
     for(int s=0;s<strings;++s){
         for(int p=0;p<planes;++p){
             auto& w=waves[size_t(s)][size_t(p)];
@@ -223,7 +244,8 @@ double PowerWaveStrings::storedBridgeEnergy() const noexcept {
     return bridges[0].storedEnergy()+bridges[1].storedEnergy();
 }
 double PowerWaveStrings::bridgeDissipation() const noexcept {
-    return bridges[0].dissipatedEnergy()+bridges[1].dissipatedEnergy();
+    return bridges[0].dissipatedEnergy()+bridges[1].dissipatedEnergy()
+           +diagnosticBridgeAbsorbed;
 }
 double PowerWaveStrings::energyResidual() const noexcept {
     return storedStringEnergy()+storedBridgeEnergy()+bridgeDissipation()
