@@ -314,7 +314,7 @@ void PhysicalModelGuitarAudioProcessor::setStateInformation(const void *data, in
         }
     }
     editorWidth.store(juce::jlimit(900, 1800, int(state.getProperty("editorWidth", 1040))));
-    editorHeight.store(juce::jlimit(864, 1728, int(state.getProperty("editorHeight", 960))));
+    editorHeight.store(juce::jlimit(882, 1764, int(state.getProperty("editorHeight", 980))));
     parameters.replaceState(state);
 }
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
