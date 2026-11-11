@@ -62,7 +62,7 @@ class PhysicalModelGuitarAudioProcessor final : public juce::AudioProcessor
         "bodyResonance",   "bodySize",       "outputLevel",   "model",          "material",
         "pickupCharacter", "bridgeCoupling", "touch", "pickAngle", "fretClearance",
         "pickupAperture", "bridgeMobility"};
-    std::atomic<int> appliedModel{0}, voiceCount{0}, editorWidth{1040}, editorHeight{960};
+    std::atomic<int> appliedModel{0}, voiceCount{0}, editorWidth{1000}, editorHeight{980};
     std::atomic<bool> modelTransition{false};
     std::atomic<float> peak{0};
 
