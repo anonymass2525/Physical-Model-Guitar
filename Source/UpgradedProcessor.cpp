@@ -31,6 +31,10 @@ PhysicalModelGuitarAudioProcessor::PhysicalModelGuitarAudioProcessor()
     rawDirectBodyMix17 = parameters.getRawParameterValue("directBodyMix17");
     rawLateBody16 = parameters.getRawParameterValue("lateBody16");
     rawDirectPhase15 = parameters.getRawParameterValue("directPhase15");
+    rawDiagnostic171 = parameters.getRawParameterValue("diagnostic171");
+    rawDiagnosticDirect171 = parameters.getRawParameterValue("diagnosticDirect171");
+    rawDiagnosticBridge171 = parameters.getRawParameterValue("diagnosticBridge171");
+    rawDiagnosticBody171 = parameters.getRawParameterValue("diagnosticBody171");
 }
 juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProcessor::createParameterLayout()
 {
@@ -118,6 +122,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhysicalModelGuitarAudioProc
           "1.7 Signed Direct/Body Air Delay",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
     l.add(std::make_unique<P>(juce::ParameterID{"directBodyMix17",1},
           "1.7 Direct String Radiation Mix",juce::NormalisableRange<float>(0.f,1.f,.001f),.5f));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"diagnostic171", 1},
+          "1.7.1 Unified Diagnostic Enable", false));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"diagnosticDirect171", 1},
+          "1.7.1 String/Pickup Direct Readout", true));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"diagnosticBridge171", 1},
+          "1.7.1 Physical String-Bridge Coupling", true));
+    l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"diagnosticBody171", 1},
+          "1.7.1 Bridge/Body Radiation Readout", true));
     l.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"measuredBridge08", 1},
           "Zenodo Classical Bridge (Experimental Scalar)", false));
     return l;
@@ -184,6 +196,14 @@ pmg::Controls PhysicalModelGuitarAudioProcessor::readControls() const noexcept
     if (rawDirectBodyMix17 != nullptr) c.directBodyMix17 = rawDirectBodyMix17->load(std::memory_order_relaxed);
     if (rawLateBody16 != nullptr) c.lateBody16 = rawLateBody16->load(std::memory_order_relaxed);
     if (rawDirectPhase15 != nullptr) c.directPhase15 = rawDirectPhase15->load(std::memory_order_relaxed);
+    if (rawDiagnostic171 != nullptr)
+        c.diagnostic171 = rawDiagnostic171->load(std::memory_order_relaxed) > .5f;
+    if (rawDiagnosticDirect171 != nullptr)
+        c.diagnosticDirect171 = rawDiagnosticDirect171->load(std::memory_order_relaxed) > .5f;
+    if (rawDiagnosticBridge171 != nullptr)
+        c.diagnosticBridge171 = rawDiagnosticBridge171->load(std::memory_order_relaxed) > .5f;
+    if (rawDiagnosticBody171 != nullptr)
+        c.diagnosticBody171 = rawDiagnosticBody171->load(std::memory_order_relaxed) > .5f;
     if (rawMeasuredBridge08 != nullptr)
         c.measuredBridge08 = rawMeasuredBridge08->load(std::memory_order_relaxed) > .5f;
     if (rawRealCalibration != nullptr && rawRealCalibration->load(std::memory_order_relaxed) > .5f)
@@ -294,7 +314,7 @@ void PhysicalModelGuitarAudioProcessor::setStateInformation(const void *data, in
         }
     }
     editorWidth.store(juce::jlimit(900, 1800, int(state.getProperty("editorWidth", 1040))));
-    editorHeight.store(juce::jlimit(792, 1584, int(state.getProperty("editorHeight", 880))));
+    editorHeight.store(juce::jlimit(864, 1728, int(state.getProperty("editorHeight", 960))));
     parameters.replaceState(state);
 }
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
