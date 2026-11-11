@@ -71,6 +71,11 @@ struct Controls
     bool radiation17=false; // v1.7 two-source coherent readout, opt-in
     float directBodyPhase17=.5f; // signed +/- .9ms relative arrival hypothesis
     float directBodyMix17=.5f; // direct-string radiation fraction, uncalibrated
+    // v1.7.1 diagnostic controls, DEFAULT OFF to preserve v1.7 sound exactly.
+    // When enabled, output taps isolate string/pickup and body radiation.
+    // Bridge OFF replaces the physical boundary by a rigid, passive reflection.
+    bool diagnostic171=false, diagnosticDirect171=true;
+    bool diagnosticBridge171=true, diagnosticBody171=true;
     PhysicalCalibration calibration{};
 };
 
