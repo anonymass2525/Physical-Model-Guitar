@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(PhysicalModelGuitar VERSION 1.7.0 LANGUAGES C CXX)
+project(PhysicalModelGuitar VERSION 1.7.1 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
@@ -42,6 +42,9 @@ if(BUILD_TESTING)
     add_executable(PMGObserver14Tests Tests/Observer14Tests.cpp)
     target_link_libraries(PMGObserver14Tests PRIVATE PMGDSP)
     add_test(NAME PMG14_transient_and_treble_observation COMMAND PMGObserver14Tests)
+    add_executable(PMGUnified171DiagnosticTests Tests/Unified171DiagnosticTests.cpp)
+    target_link_libraries(PMGUnified171DiagnosticTests PRIVATE PMGDSP)
+    add_test(NAME PMG171_unified_component_isolation COMMAND PMGUnified171DiagnosticTests)
     add_executable(PMGUnified12Tests Tests/Unified12Tests.cpp)
     target_link_libraries(PMGUnified12Tests PRIVATE PMGDSP)
     add_test(NAME PMG12_unified_energy_and_ablation COMMAND PMGUnified12Tests)
@@ -68,11 +71,11 @@ if(PMG_BUILD_PLUGIN)
         GIT_TAG 9.0.4 GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(JUCE)
     juce_add_plugin(PhysicalModelGuitar
-        COMPANY_NAME "Personal Utility Lab"
-        BUNDLE_ID "org.personalutilitylab.physicalmodelguitar.coherentradiation17"
-        PLUGIN_MANUFACTURER_CODE PmLu
-        PLUGIN_CODE Pm17
-        PRODUCT_NAME "Physical Model Guitar 1.7 Research"
+        COMPANY_NAME "Metautil"
+        BUNDLE_ID "com.metautil.physicalmodelguitar.unifieddiagnostic171"
+        PLUGIN_MANUFACTURER_CODE MtUl
+        PLUGIN_CODE PmD1
+        PRODUCT_NAME "Physical Model Guitar 1.7.1 Diagnostic"
         DESCRIPTION "Causal two-port soundboard early FIR and long modal decay with relative phase A/B"
         IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE COPY_PLUGIN_AFTER_BUILD FALSE
