@@ -488,6 +488,8 @@ void StringEngine::prepare(double sr,Model m,const Controls& c) noexcept
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
     powerStrings10.setMechanisms(c.pick12,c.fret12,c.axial12,c.pickup12);
+    powerStrings10.setDiagnosticBridgeConnected(
+        !(c.physics12 && c.diagnostic171) || c.diagnosticBridge171);
     stringPortZ09=TwoPortBridge::normalizedImpedance(int(model));
     bridgeReflections09.fill(0.f);
     bridgePortFeedback=0.f;
@@ -525,11 +527,18 @@ void StringEngine::setControls(const Controls& c) noexcept
             bridgeReflections09.fill(0.f);
         }
     }
+    const bool wasConnected = !(controls.physics12 && controls.diagnostic171)
+                              || controls.diagnosticBridge171;
+    const bool nowConnected = !(c.physics12 && c.diagnostic171) || c.diagnosticBridge171;
+    if (wasConnected != nowConnected)
+        unifiedSensorLowL=unifiedSensorLowR=0.f;
     controls=c;
     powerStrings10.setDecay(c.decay);
     powerStrings10.setPhysics11(c.physics11 && c.physics10);
     powerStrings10.setContactParameters(c.hardness,c.fretClearance,c.pickup);
     powerStrings10.setMechanisms(c.pick12,c.fret12,c.axial12,c.pickup12);
+    powerStrings10.setDiagnosticBridgeConnected(
+        !(c.physics12 && c.diagnostic171) || c.diagnosticBridge171);
     gain=std::pow(10.f,limit(-36.f,12.f,c.output)*.05f);
 }
 void StringEngine::setPitchBend(float semitones) noexcept {bend=limit(-2.f,2.f,semitones);}
@@ -697,6 +706,30 @@ StereoFrame StringEngine::nextFrame() noexcept
                     left=scale*.59f*float(sound13.left);
                     right=scale*.59f*float(sound13.right);
                 }
+            }
+        }
+        if (controls.diagnostic171) {
+            // Explicit raw unified taps. Optional 1.3-1.7 nylon/magnetic
+            // observers still advance internally, but diagnostic output uses
+            // the uncolored 1.2 readouts to identify the actual source.
+            const float bL = electric ? .14f*bodyAmount*unifiedSensorLowL
+                                     : (model==Model::nylon?125.f:140.f)
+                                       *unifiedSensorLowL*(.22f+.78f*bodyAmount);
+            const float bR = electric ? .14f*bodyAmount*unifiedSensorLowR
+                                     : (model==Model::nylon?125.f:140.f)
+                                       *unifiedSensorLowR*(.22f+.78f*bodyAmount);
+            if (electric) {
+                // Raw selected coil path is the direct observation for Electric.
+                if (!controls.diagnosticDirect171) { left=bL; right=bR; }
+                if (!controls.diagnosticBody171) { left-=bL; right-=bR; }
+            } else {
+                const float scale=model==Model::nylon?125.f:140.f;
+                const float dL=scale*.025f*stringReadout;
+                const float dR=dL*.92f;
+                left=(controls.diagnosticDirect171?dL:0.f)
+                    +(controls.diagnosticBody171?bL:0.f);
+                right=(controls.diagnosticDirect171?dR:0.f)
+                     +(controls.diagnosticBody171?bR:0.f);
             }
         }
         const auto safe=[](float v) noexcept {
