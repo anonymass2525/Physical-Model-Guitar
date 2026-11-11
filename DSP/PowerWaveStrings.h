@@ -23,6 +23,9 @@ public:
     void setPhysics11(bool enable) noexcept;
     void setMechanisms(bool pick, bool fret, bool longitudinal, bool sensor) noexcept;
     void setContactParameters(double hardness, double clearance, double pickupLocation) noexcept;
+    // Diagnostic only: rigid endpoint when disabled; never a no-op audio mute.
+    // On change, outstanding bridge modal energy is accounted as absorbed.
+    void setDiagnosticBridgeConnected(bool enabled) noexcept;
     Frame tick() noexcept;
     double storedStringEnergy() const noexcept;
     double storedBridgeEnergy() const noexcept;
@@ -64,6 +67,8 @@ private:
     bool enablePick=true, enableFret=true, enableAxial=true, enableSensor=true;
     double pickHardness=.6, fretClearance=.65, pickupLocation=.15;
     double contactDissipation11=0., axialDissipation11=0.;
+    double diagnosticBridgeAbsorbed=0.;
+    bool diagnosticBridgeConnected=true;
     int collisions11=0;
     static double waveStoredEnergy(const Wave& w,double dt) noexcept;
     void applyLocalContacts11() noexcept;
