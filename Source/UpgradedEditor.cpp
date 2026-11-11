@@ -349,6 +349,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
                     physics12On = v > .5f;
                     physical12.selected=physics12On;
                     physical12.repaint();
+                    diagnostic.setEnabled(physics12On);
+                    diagDirect.setEnabled(physics12On && diagnosticOn);
+                    diagBridge.setEnabled(physics12On && diagnosticOn);
+                    diagBody.setEnabled(physics12On && diagnosticOn);
                 }, &p.undo),
           physics11Attachment(*p.parameters.getParameter("physics11"),
                 [this](float v) {
@@ -394,6 +398,21 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
                     measured08.selected = measured08On;
                     measured08.repaint();
                 }, &p.undo),
+          diagnosticAttachment(*p.parameters.getParameter("diagnostic171"),
+                [this](float v){ diagnosticOn=v>.5f; diagnostic.selected=diagnosticOn;
+                                 diagnostic.repaint();
+                                 diagDirect.setEnabled(physics12On && diagnosticOn);
+                                 diagBridge.setEnabled(physics12On && diagnosticOn);
+                                 diagBody.setEnabled(physics12On && diagnosticOn); }, &p.undo),
+          diagnosticDirectAttachment(*p.parameters.getParameter("diagnosticDirect171"),
+                [this](float v){ diagnosticDirectOn=v>.5f; diagDirect.selected=diagnosticDirectOn;
+                                 diagDirect.repaint(); }, &p.undo),
+          diagnosticBridgeAttachment(*p.parameters.getParameter("diagnosticBridge171"),
+                [this](float v){ diagnosticBridgeOn=v>.5f; diagBridge.selected=diagnosticBridgeOn;
+                                 diagBridge.repaint(); }, &p.undo),
+          diagnosticBodyAttachment(*p.parameters.getParameter("diagnosticBody171"),
+                [this](float v){ diagnosticBodyOn=v>.5f; diagBody.selected=diagnosticBodyOn;
+                                 diagBody.repaint(); }, &p.undo),
           undo("UNDO", [&p] { p.undo.undo(); }), redo("REDO", [&p] { p.undo.redo(); }),
           comparison("RESET DEFAULTS", [this] { processor.loadComparisonPreset(chosen); }),
           calibrated("REAL RECORDING CALIBRATION: A/B", [this] {
@@ -462,6 +481,18 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
           }),
           measured08("ZENODO CLASSICAL BRIDGE: A/B", [this] {
               measured08Attachment.setValueAsCompleteGesture(measured08On ? 0.f : 1.f);
+          }),
+          diagnostic("1.7.1 UNIFIED DIAGNOSTICS: A/B", [this] {
+              diagnosticAttachment.setValueAsCompleteGesture(diagnosticOn?0.f:1.f);
+          }),
+          diagDirect("STRING / PICKUP DIRECT", [this] {
+              diagnosticDirectAttachment.setValueAsCompleteGesture(diagnosticDirectOn?0.f:1.f);
+          }),
+          diagBridge("PHYSICAL BRIDGE COUPLING", [this] {
+              diagnosticBridgeAttachment.setValueAsCompleteGesture(diagnosticBridgeOn?0.f:1.f);
+          }),
+          diagBody("BRIDGE / BODY RADIATION", [this] {
+              diagnosticBodyAttachment.setValueAsCompleteGesture(diagnosticBodyOn?0.f:1.f);
           })
     {
         for (int i = 0; i < 4; ++i)
@@ -512,6 +543,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         addAndMakeVisible(radiation17);
         addAndMakeVisible(phase17);
         addAndMakeVisible(mix17);
+        addAndMakeVisible(diagnostic);
+        addAndMakeVisible(diagDirect);
+        addAndMakeVisible(diagBridge);
+        addAndMakeVisible(diagBody);
         modelAttachment.sendInitialUpdate();
         calibrationAttachment.sendInitialUpdate();
         physicsAttachment.sendInitialUpdate();
@@ -534,6 +569,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         radiation17Attachment.sendInitialUpdate();
         phase17Attachment.sendInitialUpdate();
         mix17Attachment.sendInitialUpdate();
+        diagnosticAttachment.sendInitialUpdate();
+        diagnosticDirectAttachment.sendInitialUpdate();
+        diagnosticBridgeAttachment.sendInitialUpdate();
+        diagnosticBodyAttachment.sendInitialUpdate();
     }
     void refresh()
     {
@@ -569,12 +608,16 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         radiation17.setEnabled(chosen == 3);
         phase17.setEnabled(chosen == 3);
         mix17.setEnabled(chosen == 3);
+        diagnostic.setEnabled(physics12On);
+        diagDirect.setEnabled(physics12On && diagnosticOn);
+        diagBridge.setEnabled(physics12On && diagnosticOn);
+        diagBody.setEnabled(physics12On && diagnosticOn);
         repaint();
     }
     void paint(juce::Graphics &g) override
     {
         g.fillAll(background);
-        text(g, "PHYSICAL MODEL GUITAR 1.7", {24, 16, 620, 34}, 25, ink);
+        text(g, "PHYSICAL MODEL GUITAR 1.7.1 DIAGNOSTIC", {24, 16, 620, 34}, 25, ink);
         text(g, "EARLY MEASURED NYLON PRESSURE + LONG SOUND BOARD MODES", {25, 52, 620, 17}, 11, muted);
         for (int group = 0; group < 4; ++group)
         {
@@ -608,6 +651,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         text(g,
              "1.7: separate string/bridge readouts with tunable coherent air delay; unified mode required.",
              {24, 855, 950, 15}, 10, muted);
+        text(g, "DIAGNOSTIC / RAW 1.2 UNIFIED TAPS  (OFF = bit-identical v1.7)",
+             {24, 880, 950, 17}, 12, accent(chosen));
+        text(g, "Bridge OFF: rigid passive reflection; toggling absorbs old bridge tail. Retrigger note after A/B.",
+             {24, 953, 950, 15}, 10, muted);
     }
     void resized() override
     {
@@ -643,6 +690,10 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
         radiation17.setBounds(27, 830, 313, 26);
         phase17.setBounds(354, 830, 313, 26);
         mix17.setBounds(697, 830, 260, 26);
+        diagnostic.setBounds(27, 898, 946, 24);
+        diagDirect.setBounds(27, 925, 307, 24);
+        diagBridge.setBounds(345, 925, 307, 24);
+        diagBody.setBounds(663, 925, 310, 24);
     }
     bool fits() const
     {
@@ -657,10 +708,11 @@ class PhysicalModelGuitarAudioProcessorEditor::Canvas final : public juce::Compo
     PhysicalModelGuitarAudioProcessor &processor;
     int chosen = 0;
     float directPhase15Value=.5f,lateBody16Value=.5f,phase17Value=.5f,mix17Value=.5f;
+    bool diagnosticOn=false,diagnosticDirectOn=true,diagnosticBridgeOn=true,diagnosticBodyOn=true;
     bool calibratedOn = false, physicsOn = true, physics07On = true, physics08On = true, physics09On = true, physics10On = true, physics11On = true, physics12On = false, measured08On = false, magnetic13On = false, radiation13On = false, magnetic14On = false, radiation14On = false, magnetic15On = false, radiation15On = false, radiation16On = false,radiation17On = false;
-    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment, magnetic13Attachment, radiation13Attachment, magnetic14Attachment, radiation14Attachment, magnetic15Attachment, radiation15Attachment, directPhase15Attachment, radiation16Attachment, lateBody16Attachment, radiation17Attachment, phase17Attachment, mix17Attachment;
+    juce::ParameterAttachment modelAttachment, calibrationAttachment, physicsAttachment, physics07Attachment, physics08Attachment, physics09Attachment, physics10Attachment, physics11Attachment, physics12Attachment, measured08Attachment, magnetic13Attachment, radiation13Attachment, magnetic14Attachment, radiation14Attachment, magnetic15Attachment, radiation15Attachment, directPhase15Attachment, radiation16Attachment, lateBody16Attachment, radiation17Attachment, phase17Attachment, mix17Attachment, diagnosticAttachment, diagnosticDirectAttachment, diagnosticBridgeAttachment, diagnosticBodyAttachment;
     std::array<std::unique_ptr<Action>, 4> models;
-    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08, magnetic13, radiation13, magnetic14, radiation14, magnetic15, radiation15, directPhase15, radiation16, lateBody16, radiation17, phase17, mix17;
+    Action undo, redo, comparison, calibrated, physical, physical07, physical08, physical09, physical10, physical11, physical12, measured08, magnetic13, radiation13, magnetic14, radiation14, magnetic15, radiation15, directPhase15, radiation16, lateBody16, radiation17, phase17, mix17, diagnostic, diagDirect, diagBridge, diagBody;
 };
 PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor(
     PhysicalModelGuitarAudioProcessor &p)
@@ -669,8 +721,8 @@ PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor
     canvas = std::make_unique<Canvas>(p);
     addAndMakeVisible(*canvas);
     setResizable(true, true);
-    setResizeLimits(900, 792, 1800, 1584);
-    getConstrainer()->setFixedAspectRatio(1000. / 880.);
+    setResizeLimits(900, 864, 1800, 1728);
+    getConstrainer()->setFixedAspectRatio(1000. / 960.);
     setSize(p.editorWidth.load(), p.editorHeight.load());
     startTimerHz(24);
 }
@@ -686,8 +738,8 @@ void PhysicalModelGuitarAudioProcessorEditor::resized()
 {
     if (canvas)
     {
-        const float scale = std::min(float(getWidth()) / 1000.f, float(getHeight()) / 880.f);
-        canvas->setBounds(0, 0, 1000, 880);
+        const float scale = std::min(float(getWidth()) / 1000.f, float(getHeight()) / 960.f);
+        canvas->setBounds(0, 0, 1000, 960);
         canvas->setTransform(juce::AffineTransform::scale(scale));
         processor.editorWidth.store(getWidth());
         processor.editorHeight.store(getHeight());
