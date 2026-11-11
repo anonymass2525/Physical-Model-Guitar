@@ -721,8 +721,8 @@ PhysicalModelGuitarAudioProcessorEditor::PhysicalModelGuitarAudioProcessorEditor
     canvas = std::make_unique<Canvas>(p);
     addAndMakeVisible(*canvas);
     setResizable(true, true);
-    setResizeLimits(900, 864, 1800, 1728);
-    getConstrainer()->setFixedAspectRatio(1000. / 960.);
+    setResizeLimits(900, 882, 1800, 1764);
+    getConstrainer()->setFixedAspectRatio(1000. / 980.);
     setSize(p.editorWidth.load(), p.editorHeight.load());
     startTimerHz(24);
 }
@@ -738,8 +738,8 @@ void PhysicalModelGuitarAudioProcessorEditor::resized()
 {
     if (canvas)
     {
-        const float scale = std::min(float(getWidth()) / 1000.f, float(getHeight()) / 960.f);
-        canvas->setBounds(0, 0, 1000, 960);
+        const float scale = std::min(float(getWidth()) / 1000.f, float(getHeight()) / 980.f);
+        canvas->setBounds(0, 0, 1000, 980);
         canvas->setTransform(juce::AffineTransform::scale(scale));
         processor.editorWidth.store(getWidth());
         processor.editorHeight.store(getHeight());
